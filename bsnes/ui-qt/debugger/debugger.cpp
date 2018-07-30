@@ -7,6 +7,9 @@ Debugger *debugger;
 
 #include "tracer.cpp"
 
+#include "disassembler/symbols/symbol_map.cpp"
+#include "disassembler/symbols/symbol_map_cpu.hpp"
+#include "disassembler/symbols/symbol_map_smp.hpp"
 #include "registeredit.cpp"
 
 #include "tools/disassembler.cpp"
@@ -164,6 +167,12 @@ Debugger::Debugger() {
   oamViewer = new OamViewer;
   cgramViewer = new CgramViewer;
   debuggerOptions = new DebuggerOptions;
+
+  symbolsCPU = new SymbolMap();
+  symbolsCPU->loadFromString(DEFAULT_SYMBOL_MAP_CPU);
+  symbolsSA1 = new SymbolMap();
+  symbolsSMP = new SymbolMap();
+  symbolsSMP->loadFromString(DEFAULT_SYMBOL_MAP_SMP);
 
   connect(menu_tools_disassembler, SIGNAL(triggered()), disassembler, SLOT(show()));
   connect(menu_tools_breakpoint, SIGNAL(triggered()), breakpointEditor, SLOT(show()));

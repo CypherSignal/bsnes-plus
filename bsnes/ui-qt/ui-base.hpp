@@ -41,6 +41,7 @@ using namespace ruby;
 #include "cartridge/cartridge.hpp"
 
 #if defined(DEBUGGER)
+  #include "debugger/disassembler/symbols/symbol_map.moc.hpp"
   #include "debugger/debugger.moc.hpp"
   #include "debugger/tracer.moc.hpp"
   #include "debugger/registeredit.moc.hpp"

@@ -16,6 +16,7 @@ DisasmWidget::DisasmWidget() {
   view->setFont(QFont(Style::Monospace));
   view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   view->setMinimumHeight((25 + 1) * view->fontMetrics().height());
+  view->setWordWrapMode(QTextOption::NoWrap);
   layout->addWidget(view);
 }
 
@@ -79,32 +80,87 @@ void Disassembler::refresh(Source source, unsigned addr) {
       }
     }
   }
+  
+  string htmlOutput;
+  htmlOutput << "<table>";
+  // CodeLocation predictedCodeLoc;
+  // predictedCodeLoc.file = ~0;
+  // predictedCodeLoc.line = ~0;
+  string opCodeHtml;
+  for (unsigned i = 0; i < 25; i++) {
 
-  string output;
-  for(unsigned i = 0; i < 25; i++) {
-    if(i < 12) output << "<font color='#0000a0'>";
-    else if(i == 12) output << "<font color='#00a000'>";
-    else output << "<font color='#a00000'>";
+    htmlOutput << "<tr><td width=\"250\">";
+    
+    opCodeHtml = "";
+    if (i < 12)
+      opCodeHtml << "<font color='#0000a0'>";
+    else if (i == 12)
+      opCodeHtml << "<font color='#00a000'>";
+    else
+      opCodeHtml = "<font color='#a00000'>";
 
-    if(line[i] == -1) {
-      output << "...";
-    } else {
-      char t[256];
-      if(source == CPU) { SNES::cpu.disassemble_opcode(t, line[i]); t[20] = 0; }
-      if(source == SMP) { SNES::smp.disassemble_opcode(t, line[i]); t[23] = 0; }
-      if(source == SA1) { SNES::sa1.disassemble_opcode(t, line[i]); t[20] = 0; }
-      if(source == SFX) { SNES::superfx.disassemble_opcode(t, line[i]); t[25] = 0; }
-      string text = rtrim(t);
-      text.replace(" ", "&nbsp;");
-      output << text;
+    if (line[i] == -1)
+    {
+      opCodeHtml << "...";
     }
+    else
+    {
+      char opCodeText[128];
+      if (source == CPU) { SNES::cpu.disassemble_opcode(opCodeText, line[i]); opCodeText[20] = 0; }
+      if (source == SMP) { SNES::smp.disassemble_opcode(opCodeText, line[i]); opCodeText[23] = 0; }
+      if (source == SA1) { SNES::sa1.disassemble_opcode(opCodeText, line[i]); opCodeText[20] = 0; }
+      if (source == SFX) { SNES::superfx.disassemble_opcode(opCodeText, line[i]); opCodeText[25] = 0; }
+      rtrim(opCodeText);
+      opCodeHtml << "<pre>" << opCodeText << "</pre>";
+    }
+    opCodeHtml << "</font>";
 
-    output << "</font>";
-    if(i != 24) output << "<br>";
+    // if (auto optionalLoc = symbols->getAddressToLine(line[i]))
+    // {
+    //   CodeLocation codeLoc = optionalLoc();
+
+    //   // re-set the previous line location in case we changed files, or jumped around the same file
+    //   if (predictedCodeLoc.file != codeLoc.file || (predictedCodeLoc.line < codeLoc.line - 5 || predictedCodeLoc.line > codeLoc.line))
+    //   {
+    //     predictedCodeLoc.file = codeLoc.file;
+    //     predictedCodeLoc.line = codeLoc.line;
+
+    //     auto file = symbols->getSourceFilename(codeLoc.file);
+    //     char lineString[128];
+    //     snprintf(lineString, 128, "</td><td>---------- %s", file ? (const char*)file() : "???");
+    //     htmlOutput << lineString << "</td></tr><tr><td>";
+    //   }
+
+    //   // add source lines consecutively until we're caught up in case we skipped over a few
+    //   while (predictedCodeLoc.line != codeLoc.line)
+    //   {
+    //     char opCodeSuffix[128];
+    //     auto sourceLine = symbols->getSourceLine(predictedCodeLoc);
+    //     snprintf(opCodeSuffix, 128, "%04d: %s", predictedCodeLoc.line, sourceLine ? (const char*)sourceLine() : "???");
+    //     htmlOutput << "</td><td><pre>" << opCodeSuffix << "</pre></td></tr><tr><td>";
+    //     predictedCodeLoc.line++;
+    //   }
+
+    //   // add the actual opcode line and its sourceline suffix
+    //   htmlOutput << opCodeHtml << "</td><td>";
+
+    //   char opCodeSuffix[128];
+    //   auto sourceLine = symbols->getSourceLine(predictedCodeLoc);
+    //   snprintf(opCodeSuffix, 128, "%04d: %s", predictedCodeLoc.line, sourceLine ? (const char*)sourceLine() : "???");
+    //   htmlOutput << "<pre>" << opCodeSuffix << "</pre>";
+    //   predictedCodeLoc.line++;
+    // }
+    // else
+    {
+      htmlOutput << opCodeHtml;
+    }
+    htmlOutput << "</td></tr>";
+
   }
+  htmlOutput << "</table>";
 
-  if(source == CPU) cpuDisassembler->view->setHtml(output);
-  if(source == SMP) smpDisassembler->view->setHtml(output);
-  if(source == SA1) sa1Disassembler->view->setHtml(output);
-  if(source == SFX) sfxDisassembler->view->setHtml(output);
+  if(source == CPU) cpuDisassembler->view->setHtml(htmlOutput);
+  if(source == SMP) smpDisassembler->view->setHtml(htmlOutput);
+  if(source == SA1) sa1Disassembler->view->setHtml(htmlOutput);
+  if(source == SFX) sfxDisassembler->view->setHtml(htmlOutput);
 }
