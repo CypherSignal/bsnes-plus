@@ -93,7 +93,6 @@ public:
   void removeSymbol(uint32_t address, Symbol::Type type);
   void loadFromString(const string &file);
   void loadFromFile(const string &baseName, const string &ext);
-  void saveToFile(const string &baseName, const string &ext);
   void finishUpdates();
 
   void revalidate();
