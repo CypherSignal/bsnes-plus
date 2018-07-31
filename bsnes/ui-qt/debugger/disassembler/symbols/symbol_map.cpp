@@ -43,29 +43,6 @@ SymbolMap::SymbolMap() {
 }
 
 // ------------------------------------------------------------------------
-int32_t SymbolMap::getSymbolIndex(uint32_t address) {
-  revalidate();
-
-  int32_t left = 0;
-  int32_t right = symbols.size() - 1;
-
-  while (right >= left) {
-    uint32_t cur = ((right - left) >> 1) + left;
-    uint32_t curaddr = symbols[cur].address;
-
-    if (address < curaddr) {
-      right = cur - 1;
-    } else if (address > curaddr) {
-      left = cur + 1;
-    } else {
-      return cur;
-    }
-  }
-
-  return -1;
-}
-
-// ------------------------------------------------------------------------
 void SymbolMap::addLocation(uint32_t address, const string &name) {
   addSymbol(address, Symbol::createLocation(address, name));
 }
@@ -108,16 +85,20 @@ void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &
 
   string sourceFileData;
   if (fileId < sourceFileLines.size() && sourceFileLines[fileId].size() > 0) {
-    // todo
+    // SYMBOLS-TODO this might be crashing?
     //debugger->echo(string() << "WARNING: While parsing symbols, file index " << fileId << " appeared for file \"" << sourceFiles[fileId].filename << "\" and \"" << filename << "\". Disassembly listing for either of these may be incorrect or unavailable.<br>");
   }
   else if (sourceFileData.readfile(filename)) {
     unsigned long local_checksum = crc32_calculate((const uint8_t*)(sourceFileData()), sourceFileData.length());
     if (checksum != local_checksum) {
-      // todo
+      // SYMBOLS-TODO this might be crashing?
       //debugger->echo(string() << "WARNING: \"" << sourceFiles[fileId].filename << "\" has been modified since the ROM's symbols were built. Disassembly listing for this file may be incorrect or unavailable.<br>");
     }
     else {
+      SourceFileInformation newFileInfo;
+      newFileInfo.checksum = checksum;
+      newFileInfo.filename = filename;
+      sourceFiles[fileId] = newFileInfo;
       sourceFileLines[fileId].split("\n", sourceFileData);
     }
   }
@@ -134,16 +115,15 @@ void SymbolMap::finishUpdates() {
 
     uint32_t symbolIndex = 0;
     uint32_t symbolIndexEnd = symbols.size();
+    string sourceLine;
     for (int i = 0; i < addressToSourceLineMappings.size(); ++i) {
       AddressToSourceLine addrToLine = addressToSourceLineMappings[i];
-      string sourceLine;
-      if (addrToLine.file < sourceFileLines.size() && addrToLine.line < sourceFileLines[addrToLine.file].size()) {
-        sourceLine = sourceFileLines[addrToLine.file][addrToLine.line - 1]; // -1 because line entries are 1-based
-      }
-      else {
-        char hexAddr[9];
-        snprintf(hexAddr, 9, "%.8x", addrToLine.address);
-        // todo
+
+      const char* sourceLineRaw = getSourceLineFromLocation(addrToLine.file, addrToLine.line);
+      if (sourceLineRaw == nullptr) {
+        // SYMBOLS-TODO this might be crashing?
+        //char hexAddr[9];
+        //snprintf(hexAddr, 9, "%.8x", addrToLine.address);
         //debugger->echo(string() << "WARNING: Address-to-line mapping for address 0x" << hexAddr << " tried to refer to a file/line location that doesn't exist. File: " << addrToLine.file << ", line: " << addrToLine.line << ".<br>");
         continue;
       }
@@ -153,6 +133,7 @@ void SymbolMap::finishUpdates() {
         ++symbolIndex;
       }
 
+      sourceLine = sourceLineRaw;
       // create new symbol if we didn't match the address
       if (symbols[symbolIndex].address > addrToLine.address) {
         Symbols s;
@@ -223,6 +204,81 @@ Symbol SymbolMap::getSourceLine(uint32_t address) {
 }
 
 // ------------------------------------------------------------------------
+int32_t SymbolMap::getSymbolIndex(uint32_t address) {
+  revalidate();
+
+  int32_t left = 0;
+  int32_t right = symbols.size() - 1;
+
+  while (right >= left) {
+    uint32_t cur = ((right - left) >> 1) + left;
+    uint32_t curaddr = symbols[cur].address;
+
+    if (address < curaddr) {
+      right = cur - 1;
+    }
+    else if (address > curaddr) {
+      left = cur + 1;
+    }
+    else {
+      return cur;
+    }
+  }
+
+  return -1;
+}
+
+// ------------------------------------------------------------------------
+bool SymbolMap::getSourceLineLocation(uint32_t address, uint32_t& outFile, uint32_t &outLine)
+{
+  revalidate();
+
+  int32_t left = 0;
+  int32_t right = addressToSourceLineMappings.size() - 1;
+
+  while (right >= left) {
+    uint32_t cur = ((right - left) >> 1) + left;
+    uint32_t curaddr = addressToSourceLineMappings[cur].address;
+
+    if (address < curaddr) {
+      right = cur - 1;
+    }
+    else if (address > curaddr) {
+      left = cur + 1;
+    }
+    else {
+      outFile = addressToSourceLineMappings[cur].file;
+      outLine = addressToSourceLineMappings[cur].line;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// ------------------------------------------------------------------------
+const char* SymbolMap::getSourceLineFromLocation(uint32_t file, uint32_t line)
+{
+  if (file < sourceFileLines.size() && line < sourceFileLines[file].size()) {
+    return (const char*)sourceFileLines[file][line - 1](); // -1 because line entries are 1-based
+  }
+  else {
+    return nullptr;
+  }
+}
+
+// ------------------------------------------------------------------------
+const char* SymbolMap::getSourceFilename(uint32_t file)
+{
+  if (file < sourceFiles.size()) {
+    return (const char*)sourceFiles[file].filename();
+  }
+  else {
+    return nullptr;
+  }
+}
+
+// ------------------------------------------------------------------------
 void SymbolMap::removeSymbol(uint32_t address, Symbol::Type type) {
   int32_t index = getSymbolIndex(address);
   if (index == -1) {
@@ -262,6 +318,8 @@ void SymbolMap::loadFromFile(const string &baseName, const string &ext) {
   delete[] buffer;
 
   f.close();
+
+  debugger->echo(string() << "Found symbols at " << fileName << ".<br>");
 }
 
 // ------------------------------------------------------------------------

@@ -97,10 +97,13 @@ public:
 
   void revalidate();
 
-  int32_t getSymbolIndex(uint32_t address);
   Symbol getSymbol(uint32_t address);
   Symbol getComment(uint32_t address);
   Symbol getSourceLine(uint32_t address);
+  int32_t getSymbolIndex(uint32_t address);
+  bool getSourceLineLocation(uint32_t address, uint32_t& outFile, uint32_t &outLine);
+  const char* getSourceLineFromLocation(uint32_t file, uint32_t line);
+  const char* getSourceFilename(uint32_t file);
 
   bool isValid;
   SymbolsLists symbols;

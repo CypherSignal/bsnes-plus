@@ -83,9 +83,8 @@ void Disassembler::refresh(Source source, unsigned addr) {
   
   string htmlOutput;
   htmlOutput << "<table>";
-  // CodeLocation predictedCodeLoc;
-  // predictedCodeLoc.file = ~0;
-  // predictedCodeLoc.line = ~0;
+  unsigned int predictedSourceLocFile = ~0;
+  unsigned int predictedSourceLocLine = ~0;
   string opCodeHtml;
   for (unsigned i = 0; i < 25; i++) {
 
@@ -99,12 +98,10 @@ void Disassembler::refresh(Source source, unsigned addr) {
     else
       opCodeHtml = "<font color='#a00000'>";
 
-    if (line[i] == -1)
-    {
+    if (line[i] == -1) {
       opCodeHtml << "...";
     }
-    else
-    {
+    else {
       char opCodeText[128];
       if (source == CPU) { SNES::cpu.disassemble_opcode(opCodeText, line[i]); opCodeText[20] = 0; }
       if (source == SMP) { SNES::smp.disassemble_opcode(opCodeText, line[i]); opCodeText[23] = 0; }
@@ -115,43 +112,41 @@ void Disassembler::refresh(Source source, unsigned addr) {
     }
     opCodeHtml << "</font>";
 
-    // if (auto optionalLoc = symbols->getAddressToLine(line[i]))
-    // {
-    //   CodeLocation codeLoc = optionalLoc();
+    SymbolMap *symbols = debugger->getSymbols(source);
+    unsigned int currentSourceLocFile = 0;
+    unsigned int currentSourceLocLine = 0;
 
-    //   // re-set the previous line location in case we changed files, or jumped around the same file
-    //   if (predictedCodeLoc.file != codeLoc.file || (predictedCodeLoc.line < codeLoc.line - 5 || predictedCodeLoc.line > codeLoc.line))
-    //   {
-    //     predictedCodeLoc.file = codeLoc.file;
-    //     predictedCodeLoc.line = codeLoc.line;
+    if (symbols != nullptr && symbols->getSourceLineLocation(line[i], currentSourceLocFile, currentSourceLocLine)) {
+      // re-set the previous line location in case we changed files, or jumped around the same file
+      if (predictedSourceLocFile != currentSourceLocFile || (predictedSourceLocLine < currentSourceLocLine - 5 || predictedSourceLocLine > currentSourceLocLine)) {
+        predictedSourceLocFile = currentSourceLocFile;
+        predictedSourceLocLine = currentSourceLocLine;
 
-    //     auto file = symbols->getSourceFilename(codeLoc.file);
-    //     char lineString[128];
-    //     snprintf(lineString, 128, "</td><td>---------- %s", file ? (const char*)file() : "???");
-    //     htmlOutput << lineString << "</td></tr><tr><td>";
-    //   }
+        const char* file = symbols->getSourceFilename(currentSourceLocFile);
+        char lineString[256];
+        snprintf(lineString, 256, "</td><td>---------- %s", file ? file : "???");
+        htmlOutput << lineString << "</td></tr><tr><td>";
+      }
 
-    //   // add source lines consecutively until we're caught up in case we skipped over a few
-    //   while (predictedCodeLoc.line != codeLoc.line)
-    //   {
-    //     char opCodeSuffix[128];
-    //     auto sourceLine = symbols->getSourceLine(predictedCodeLoc);
-    //     snprintf(opCodeSuffix, 128, "%04d: %s", predictedCodeLoc.line, sourceLine ? (const char*)sourceLine() : "???");
-    //     htmlOutput << "</td><td><pre>" << opCodeSuffix << "</pre></td></tr><tr><td>";
-    //     predictedCodeLoc.line++;
-    //   }
+      // add source lines consecutively until we're caught up in case we skipped over a few
+      while (predictedSourceLocLine != currentSourceLocLine) {
+        char opCodeSuffix[256];
+        const char* sourceLine = symbols->getSourceLineFromLocation(currentSourceLocFile, predictedSourceLocLine);
+        snprintf(opCodeSuffix, 256, "%04d: %s", predictedSourceLocLine, sourceLine ? sourceLine : "???");
+        htmlOutput << "</td><td><pre>" << opCodeSuffix << "</pre></td></tr><tr><td>";
+        predictedSourceLocLine++;
+      }
 
-    //   // add the actual opcode line and its sourceline suffix
-    //   htmlOutput << opCodeHtml << "</td><td>";
+      // add the actual opcode line and its sourceline suffix
+      htmlOutput << opCodeHtml << "</td><td>";
 
-    //   char opCodeSuffix[128];
-    //   auto sourceLine = symbols->getSourceLine(predictedCodeLoc);
-    //   snprintf(opCodeSuffix, 128, "%04d: %s", predictedCodeLoc.line, sourceLine ? (const char*)sourceLine() : "???");
-    //   htmlOutput << "<pre>" << opCodeSuffix << "</pre>";
-    //   predictedCodeLoc.line++;
-    // }
-    // else
-    {
+      char opCodeSuffix[256];
+      const char* sourceLine = symbols->getSourceLineFromLocation(currentSourceLocFile, currentSourceLocLine);
+      snprintf(opCodeSuffix, 256, "%04d: %s", currentSourceLocLine, sourceLine ? sourceLine : "???");
+      htmlOutput << "<pre>" << opCodeSuffix << "</pre>";
+      predictedSourceLocLine++;
+    }
+    else {
       htmlOutput << opCodeHtml;
     }
     htmlOutput << "</td></tr>";

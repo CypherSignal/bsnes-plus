@@ -258,6 +258,11 @@ void Debugger::modifySystemState(unsigned state) {
       }
     }
     
+    // SYMBOLS-TODO: need to take basename(filename).sym and search multipl symbol paths for the symbols we can load
+    symbolsCPU->loadFromFile(nall::basename(cartridge.fileName), ".sym");
+    symbolsCPU->loadFromFile(nall::basename(cartridge.fileName), ".cpu.sym");
+    symbolsSMP->loadFromFile(nall::basename(cartridge.fileName), ".smp.sym");
+
     tracer->resetTraceState();
   }
 
@@ -512,6 +517,15 @@ void Debugger::autoUpdate() {
   registerEditSA1->synchronize();
   registerEditSMP->synchronize();
   registerEditSFX->synchronize();
+}
+
+class SymbolMap* Debugger::getSymbols(Disassembler::Source source) {
+  if (source == Disassembler::CPU) { return symbolsCPU; }
+  if (source == Disassembler::SMP) { return symbolsSMP; }
+  if (source == Disassembler::SA1) { return symbolsSA1; }
+  if (source == Disassembler::SFX) { return nullptr; }
+
+  return nullptr;
 }
 
 #endif

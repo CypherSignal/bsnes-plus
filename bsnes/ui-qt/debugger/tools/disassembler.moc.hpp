@@ -1,3 +1,6 @@
+#ifndef __DISASSEMBLER_MOC__H__
+#define __DISASSEMBLER_MOC__H__
+
 class DisasmWidget : public QWidget {
 public:
   QVBoxLayout *layout;
@@ -22,3 +25,5 @@ extern DisasmWidget *smpDisassembler;
 extern DisasmWidget *sa1Disassembler;
 extern DisasmWidget *sfxDisassembler;
 extern Disassembler *disassembler;
+
+#endif // __DISASSEMBLER_MOC__H__

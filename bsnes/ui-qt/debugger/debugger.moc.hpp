@@ -1,3 +1,5 @@
+#include "tools/disassembler.moc.hpp"
+
 class Debugger : public Window {
   Q_OBJECT
 
@@ -37,9 +39,7 @@ public:
   QCheckBox *traceMask;
   QWidget *spacer;
 
-  class SymbolMap *symbolsCPU;
-  class SymbolMap *symbolsSA1;
-  class SymbolMap *symbolsSMP;
+  class SymbolMap *getSymbols(Disassembler::Source source);
 
   void modifySystemState(unsigned);
   void echo(const char *message);
@@ -61,6 +61,10 @@ private:
   inline void switchWindow();
 
   unsigned frameCounter;
+
+  class SymbolMap *symbolsCPU;
+  class SymbolMap *symbolsSA1;
+  class SymbolMap *symbolsSMP;
 };
 
 extern Debugger *debugger;
