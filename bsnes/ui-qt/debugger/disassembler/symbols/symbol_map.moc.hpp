@@ -91,9 +91,11 @@ public:
   void addSourceLine(uint32_t address, uint32_t file, uint32_t line);
   void addSourceFile(uint32_t fileId, uint32_t checksum, const string &filename);
   void removeSymbol(uint32_t address, Symbol::Type type);
+  void finishUpdates();
+
   void loadFromString(const string &file);
   void loadFromFile(const string &baseName, const string &ext);
-  void finishUpdates();
+  void unloadAll();
 
   void revalidate();
 

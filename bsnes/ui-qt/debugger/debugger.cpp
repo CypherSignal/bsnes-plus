@@ -169,10 +169,8 @@ Debugger::Debugger() {
   debuggerOptions = new DebuggerOptions;
 
   symbolsCPU = new SymbolMap();
-  symbolsCPU->loadFromString(DEFAULT_SYMBOL_MAP_CPU);
   symbolsSA1 = new SymbolMap();
   symbolsSMP = new SymbolMap();
-  symbolsSMP->loadFromString(DEFAULT_SYMBOL_MAP_SMP);
 
   connect(menu_tools_disassembler, SIGNAL(triggered()), disassembler, SLOT(show()));
   connect(menu_tools_breakpoint, SIGNAL(triggered()), breakpointEditor, SLOT(show()));
@@ -259,8 +257,11 @@ void Debugger::modifySystemState(unsigned state) {
     }
     
     // SYMBOLS-TODO: need to take basename(filename).sym and search multipl symbol paths for the symbols we can load
+    symbolsCPU->loadFromString(DEFAULT_SYMBOL_MAP_CPU);
     symbolsCPU->loadFromFile(nall::basename(cartridge.fileName), ".sym");
     symbolsCPU->loadFromFile(nall::basename(cartridge.fileName), ".cpu.sym");
+    
+    symbolsSMP->loadFromString(DEFAULT_SYMBOL_MAP_SMP);
     symbolsSMP->loadFromFile(nall::basename(cartridge.fileName), ".smp.sym");
 
     tracer->resetTraceState();
@@ -284,6 +285,10 @@ void Debugger::modifySystemState(unsigned state) {
         fp.close();
       }
     }
+
+    symbolsCPU->unloadAll();
+    symbolsSMP->unloadAll();
+
   }
 }
 

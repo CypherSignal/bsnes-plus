@@ -338,3 +338,12 @@ void SymbolMap::loadFromString(const string &file) {
 }
 
 // ------------------------------------------------------------------------
+void SymbolMap::unloadAll()
+{
+  symbols.reset();
+  addressToSourceLineMappings.reset();
+  sourceFiles.reset();
+  sourceFileLines.reset();
+}
+
+// ------------------------------------------------------------------------
