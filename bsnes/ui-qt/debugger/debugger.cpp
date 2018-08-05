@@ -31,6 +31,8 @@ Debugger *debugger;
 
 #include "misc/debugger-options.cpp"
 
+#include "extern-debug/extern-debug.cpp"
+
 Debugger::Debugger() {
   setObjectName("debugger");
   setWindowTitle("Debugger");
@@ -171,6 +173,8 @@ Debugger::Debugger() {
   symbolsCPU = new SymbolMap();
   symbolsSA1 = new SymbolMap();
   symbolsSMP = new SymbolMap();
+
+  externDebugHandler = new ExternDebugHandler;
 
   connect(menu_tools_disassembler, SIGNAL(triggered()), disassembler, SLOT(show()));
   connect(menu_tools_breakpoint, SIGNAL(triggered()), breakpointEditor, SLOT(show()));

@@ -64,6 +64,8 @@ using namespace ruby;
   #include "debugger/ppu/cgram-viewer.moc.hpp"
 
   #include "debugger/misc/debugger-options.moc.hpp"
+
+  #include "debugger/extern-debug/extern-debug.moc.hpp"
 #endif
 
 #include "input/input.hpp"

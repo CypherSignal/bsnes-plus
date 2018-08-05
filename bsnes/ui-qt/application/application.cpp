@@ -177,6 +177,9 @@ void Application::run() {
     autopause = false;
   }
 
+  if (externDebugHandler)
+    externDebugHandler->processRequests();
+
   if(SNES::cartridge.loaded() && !pause && !autopause && (!debug || debugrun)) {
     SNES::system.run();
     #if defined(DEBUGGER)
