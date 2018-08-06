@@ -20,24 +20,15 @@
 ExternDebugHandler *externDebugHandler;
 
 //////////////////////////////////////////////////////////////////////////
+// simple string-hash function for switching on response types
 
-// todo: should be able to make this atomic
-void ConcurrentJsonQueue::enqueue(const nlohmann::json& t)
+constexpr unsigned long hashCalc(const char* ch, size_t len)
 {
-  QMutexLocker _(&m_mutex);
-  m_queue.enqueue(t);
+  return len > 0 ? ((unsigned long)(*ch) + hashCalc(ch + 1, len - 1) * 33) % (1 << 26) : 0;
 }
-
-nlohmann::json ConcurrentJsonQueue::dequeue()
+constexpr unsigned long operator "" _hash(const char* ch, size_t len)
 {
-  QMutexLocker _(&m_mutex);
-  return m_queue.dequeue();
-}
-
-bool ConcurrentJsonQueue::empty()
-{
-  QMutexLocker _(&m_mutex);
-  return m_queue.empty();
+  return hashCalc(ch, len);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -49,7 +40,7 @@ void RequestListenerThread::run()
   m_stdinLog = fopen("requestLog.txt", "wb");
 
   // check if stdin is set up for reading (e.g. we only launched a window without any attachment)
-  // TODO: how can vscode be set up for a delayed attach to bsnes? what comms happens over stdin at that point?
+  // TODO: how can vscode be set up for a delayed attach to bsnes? what comms happens over stdin in that case?
   {
     fprintf(m_stdinLog, "Checking stdin fstat\n");
     struct stat stdinStat;
@@ -101,6 +92,7 @@ void RequestListenerThread::run()
     // todo: more robust handling required - need to check if the json obj is _compatible_
     if (!jsonObj.is_null())
     {
+      QMutexLocker _(requestQueueMutex);
       requestQueue->enqueue(jsonObj);
     }
   }
@@ -109,9 +101,9 @@ void RequestListenerThread::run()
 
 //////////////////////////////////////////////////////////////////////////
 
-void writeJson(nlohmann::json &jsonObj, FILE* file)
+void writeJson(const nlohmann::json &jsonObj, FILE* file)
 {
-  auto jsonDump = jsonObj.dump();
+  const auto& jsonDump = jsonObj.dump();
   if (file)
   {
     fprintf(file, "Content-Length: %d\r\n\r\n%s\n", jsonDump.length(), jsonDump.data());
@@ -127,7 +119,9 @@ ExternDebugHandler::ExternDebugHandler()
   :m_responseSeqId(0)
 {
   m_requestListenerThread = new RequestListenerThread(this);
+  m_requestListenerThread->requestQueueMutex = &m_requestQueueMutex;
   m_requestListenerThread->requestQueue = &m_requestQueue;
+
   m_requestListenerThread->start();
 
   m_stdoutLog = fopen("responseEventLog.txt", "wb");
@@ -143,28 +137,101 @@ ExternDebugHandler::ExternDebugHandler()
 
 void ExternDebugHandler::processRequests()
 {
-  while (!m_requestQueue.empty())
-  { 
-    nlohmann::json pendingRequest = m_requestQueue.dequeue();
-    
-    nlohmann::json responseJson;
-    responseJson["seq"] = m_responseSeqId++;
-    responseJson["type"] = "response";
-    responseJson["request_seq"] = pendingRequest["seq"];
-    responseJson["command"] = pendingRequest["command"];
-    responseJson["success"] = true;
-    writeJson(responseJson, m_stdoutLog);
+  {
+    QMutexLocker _(&m_requestQueueMutex);
+    while (!m_requestQueue.empty())
+    {
+      nlohmann::json pendingRequest = m_requestQueue.dequeue();
+      nlohmann::json responseJson = createResponse(pendingRequest);
 
-    nlohmann::json outputEventJson;
-    outputEventJson["seq"] = m_responseSeqId++;
-    outputEventJson["type"] = "event";
-    outputEventJson["event"] = "output";
-    outputEventJson["body"]["output"] = "This is a test.\n";
-    writeJson(outputEventJson, m_stdoutLog);
+      // todo more+better event handling!!
+      const auto& pendingReqStr = pendingRequest["command"].get_ref<const nlohmann::json::string_t&>();
+
+      switch (hashCalc(pendingReqStr.data(), pendingReqStr.size()))
+      {
+      case "initialize"_hash:
+        writeJson(createEvent("initialized"), m_stdoutLog);
+        break;
+      case "pause"_hash:
+      case "continue"_hash:
+        debugger->toggleRunStatus();
+        break;
+      case "stepIn"_hash:
+        debugger->stepAction();
+        break;
+      case "next"_hash:
+        debugger->stepOverAction();
+        break;
+      case "stepOut"_hash:
+        debugger->stepOutAction();
+        break;
+      case "threads"_hash:
+        responseJson["body"]["threads"][0]["name"] = "CPU";
+        responseJson["body"]["threads"][0]["id"] = "0";
+        break;
+      }
+      writeJson(responseJson, m_stdoutLog);
+    }
   }
 
-  // todo : issue events here, too?
+  while (!m_eventQueue.empty())
+  {
+    writeJson(m_eventQueue.dequeue(), m_stdoutLog);
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::stoppedEvent()
+{
+  nlohmann::json debugEvent = createEvent("stopped");
+  debugEvent["body"]["reason"] = "pause"; 
+
+  m_eventQueue.enqueue(debugEvent);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::continuedEvent()
+{
+  nlohmann::json debugEvent = createEvent("continued");
+  debugEvent["body"]["threadId"] = 0;
+  debugEvent["body"]["allThreadsContinued"] = true;
+
+  m_eventQueue.enqueue(debugEvent);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::loadCartridgeEvent(const char* cartridgeFile)
+{
+  nlohmann::json debugEvent = createEvent("process");
+  debugEvent["body"]["name"] = cartridgeFile;
+
+  m_eventQueue.enqueue(debugEvent);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+nlohmann::json ExternDebugHandler::createResponse(const nlohmann::json& request)
+{
+  return nlohmann::json::object({
+    { "seq", m_responseSeqId++ },
+    { "type", "response" },
+    { "request_seq", request["seq"] },
+    { "command", request["command"] },
+    { "success", true } // response handlers should flip this to false only if needed
+  });
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+nlohmann::json ExternDebugHandler::createEvent(const char* eventType)
+{
+  return nlohmann::json::object({
+    { "seq", m_responseSeqId++},
+    { "type", "event" },
+    { "event", eventType }
+    });
+}
 

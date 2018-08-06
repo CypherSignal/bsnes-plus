@@ -9,16 +9,7 @@
 // (see also Makefile)
 #include <json/single_include/nlohmann/json.hpp>
 
-class ConcurrentJsonQueue
-{
-public:
-  nlohmann::json dequeue();
-  void enqueue(const nlohmann::json& t);
-  bool empty();
-private:
-  QMutex m_mutex;
-  QQueue<nlohmann::json> m_queue;
-};
+//////////////////////////////////////////////////////////////////////////
 
 class RequestListenerThread : public QThread
 {
@@ -28,7 +19,8 @@ public:
 
   void run();
 
-  ConcurrentJsonQueue* requestQueue;
+  QMutex* requestQueueMutex;
+  QQueue<nlohmann::json>* requestQueue;
 
 private:
   FILE * m_stdinLog;
@@ -43,16 +35,24 @@ public:
   ExternDebugHandler();
   void processRequests();
 
+  void stoppedEvent();
+  void continuedEvent();
+  void loadCartridgeEvent(const char* cartridgeFile);
+
 public slots:
 
 private:
-  RequestListenerThread* m_requestListenerThread;
-  
-  ConcurrentJsonQueue m_requestQueue;
+  nlohmann::json createResponse(const nlohmann::json& request);
+  nlohmann::json createEvent(const char* eventType);
 
-  FILE* m_stdoutLog;
+  RequestListenerThread* m_requestListenerThread;
+  QMutex m_requestQueueMutex;
+  QQueue<nlohmann::json> m_requestQueue;
+
+  QQueue<nlohmann::json> m_eventQueue;
 
   int m_responseSeqId;
+  FILE* m_stdoutLog;
 };
 
 extern ExternDebugHandler* externDebugHandler;

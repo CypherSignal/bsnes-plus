@@ -269,6 +269,8 @@ void Debugger::modifySystemState(unsigned state) {
     symbolsSMP->loadFromFile(nall::basename(cartridge.fileName), ".smp.sym");
 
     tracer->resetTraceState();
+
+    externDebugHandler->loadCartridgeEvent(cartridge.fileName());
   }
 
   if(state == Utility::UnloadCartridge) {
@@ -311,6 +313,15 @@ void Debugger::synchronize() {
   stepOver->setEnabled(stepOtherEnabled);
   stepOut->setEnabled(stepOtherEnabled);
   
+  if (active)
+  {
+    externDebugHandler->stoppedEvent();
+  }
+  else
+  {
+    externDebugHandler->continuedEvent();
+  }
+
   // todo: factor in whether or not cartridge actually contains SA1/SuperFX
   SNES::debugger.step_cpu = application.debug && stepCPU->isChecked();
   SNES::debugger.step_smp = application.debug && stepSMP->isChecked();
