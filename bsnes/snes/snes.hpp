@@ -120,6 +120,50 @@ namespace SNES {
     virtual void     setFlag(unsigned id, bool value) {}
   };
 
+#ifdef DEBUGGER
+struct StackFrames
+{
+  StackFrames() {
+    reset();
+  }
+
+  void push(uint32 addr, bool addrIs24bit)
+  {
+    frameAddr[count] = addr;
+    frameAddrIs24bit[count] = addrIs24bit;
+    count++;
+    if (count >= MAX_FRAMES)
+      count = MAX_FRAMES - 1;
+  }
+
+  void pop()
+  {
+    --count;
+    if (count < 0) 
+      count = 0;
+  }
+
+  uint32 headAddr()
+  {
+    return count == 0 ? 0xFFFF : frameAddr[count-1];
+  }
+
+  void reset()
+  {
+    memset(frameAddr, 0, MAX_FRAMES * sizeof(uint32));
+    memset(frameAddrIs24bit, 0, MAX_FRAMES * sizeof(bool));
+    count = 0;
+  }
+
+  static const int MAX_FRAMES = 256;
+  int count;
+  // location on the stack that an instruction ptr was saved to
+  uint32 frameAddr[MAX_FRAMES];
+  // whether or not the frame stored at the corresponding addr should be read as 24 bit (jsr or not-emulated irq) or 16-bit (jsl)
+  bool frameAddrIs24bit[MAX_FRAMES];
+};
+#endif
+
   #include <memory/memory.hpp>
   #include <cpu/core/core.hpp>
   #include <smp/core/core.hpp>

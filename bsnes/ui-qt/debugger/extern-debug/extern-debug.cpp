@@ -236,47 +236,6 @@ void ExternDebugHandler::loadCartridgeEvent(const Cartridge& cartridge, const ch
 
 //////////////////////////////////////////////////////////////////////////
 
-void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
-{
-  unsigned stackFrameCount = 1; // 1 to allow for the pc 
-  responseJson["body"]["totalFrames"] = stackFrameCount;
-  nlohmann::json& responseStackFrames = responseJson["body"]["stackFrames"];
-
-  responseStackFrames[0]["id"] = 0;
-  responseStackFrames[0]["column"] = 0;
-
-  SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
-  uint32_t file = 0;
-  uint32_t line = 0;
-
-  if (symbolMap && symbolMap->getSourceLineLocation(SNES::cpu.regs.pc, file, line))
-  {
-    char stackName[32];
-    snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
-    responseStackFrames[0]["name"] = stackName; // todo - this should sample function name (will need to add func to symbol_map)
-    responseStackFrames[0]["line"] = line;
-
-    if (const char* srcFilename = symbolMap->getSourceIncludeFilePath(file))
-    {
-      responseStackFrames[0]["source"]["name"] = srcFilename;
-    }
-
-    if (const char* resolvedFilename = symbolMap->getSourceResolvedFilePath(file))
-    {
-      responseStackFrames[0]["source"]["path"] = resolvedFilename;
-      responseStackFrames[0]["source"]["origin"] = "file";
-    }
-  }
-  else
-  {
-    char stackName[32];
-    snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
-    responseStackFrames[0]["name"] = stackName;
-    responseStackFrames[0]["line"] = 0;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////
 
 void ExternDebugHandler::handleLaunchRequest(const nlohmann::json &pendingRequest)
 {
@@ -344,6 +303,43 @@ void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson
           });
       }
     }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
+{
+  unsigned stackFrameCount = SNES::cpu.stackFrames.count + 1; // 1 to allow for the pc
+  responseJson["body"]["totalFrames"] = stackFrameCount;
+
+  char stackName[64];
+
+  snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
+  uint8_t prevBank = SNES::cpu.regs.pc.b;
+
+  responseJson["body"]["stackFrames"][0]["id"] = 0;
+  responseJson["body"]["stackFrames"][0]["name"] = stackName;
+  responseJson["body"]["stackFrames"][0]["line"] = 0;
+  responseJson["body"]["stackFrames"][0]["column"] = 0;
+
+  for (unsigned i = 1, framePtrIdx = SNES::cpu.stackFrames.count-1; i < stackFrameCount; ++i, --framePtrIdx)
+  {
+    uint32_t framePtr = SNES::cpu.stackFrames.frameAddr[framePtrIdx];
+    uint32_t origFramePtr = framePtr;
+    bool extendedAddr = SNES::cpu.stackFrames.frameAddrIs24bit[framePtrIdx];
+    // if the framePtr is only 16-bits (jsr & rts) then we must be in the same bank
+    uint8_t l = SNES::cpu.disassembler_read(++framePtr);
+    uint8_t h = SNES::cpu.disassembler_read(++framePtr);
+    uint8_t b = extendedAddr ? SNES::cpu.disassembler_read(++framePtr) : prevBank;
+
+    snprintf(stackName, 32, "0x%.2x%.2x%.2x via 0x%.6x", b, h, l, origFramePtr);
+    prevBank = b;
+
+    responseJson["body"]["stackFrames"][i]["id"] = 0;
+    responseJson["body"]["stackFrames"][i]["name"] = stackName;
+    responseJson["body"]["stackFrames"][i]["line"] = 0;
+    responseJson["body"]["stackFrames"][i]["column"] = 0;
   }
 }
 

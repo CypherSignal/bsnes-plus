@@ -44,13 +44,13 @@ void CPUDebugger::op_step() {
   // adjust call count if this is a call or return
   // (or if we're stepping over and no call occurred)
   // (TODO: track interrupts as well?)
+  uint8 opcode = disassembler_read(opcode_pc);
   if (debugger.step_cpu) {
     if (debugger.step_over_new && debugger.call_count == 0) {
       debugger.call_count = -1;
       debugger.step_over_new = false;
     }
   
-    uint8 opcode = disassembler_read(opcode_pc);
     if (opcode == 0x20 || opcode == 0x22 || opcode == 0xfc) {
       debugger.call_count++;
     } else if (opcode == 0x60 || opcode == 0x6b) {
@@ -59,7 +59,27 @@ void CPUDebugger::op_step() {
   }
 
   CPU::op_step();
+
+  // todo: LttP does a lot of shenanigans with its stack frame. Should this be supported?
+
+  // various instructions can pull off the stack - drop any that are no longer relevant
+  // todo: fix this up to be smarter? faster?
+  while (stackFrames.headAddr() < regs.s) {
+    stackFrames.pop();
+  }
+
+  if (opcode == 0x22 || opcode == 0x20 || opcode == 0xfc) { // jsl, jsr, jsr indexed
+    stackFrames.push(regs.s, opcode == 0x22); // jsl
+  }
+
   synchronize_smp();
+}
+
+void CPUDebugger::op_irq()
+{
+  CPU::op_irq();
+  // op_irq saves out the emulated state, so we need to shift s forward by 1 to get to the actual addr
+  stackFrames.push(regs.s + 1, !regs.e); 
 }
 
 alwaysinline uint8_t CPUDebugger::op_readpc() {
