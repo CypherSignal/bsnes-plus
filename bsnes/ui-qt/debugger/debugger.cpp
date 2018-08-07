@@ -270,7 +270,7 @@ void Debugger::modifySystemState(unsigned state) {
 
     tracer->resetTraceState();
 
-    externDebugHandler->loadCartridgeEvent(cartridge.fileName());
+    externDebugHandler->loadCartridgeEvent(cartridge, cartridge.fileName());
   }
 
   if(state == Utility::UnloadCartridge) {

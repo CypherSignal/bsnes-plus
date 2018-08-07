@@ -144,13 +144,14 @@ void ExternDebugHandler::processRequests()
       nlohmann::json pendingRequest = m_requestQueue.dequeue();
       nlohmann::json responseJson = createResponse(pendingRequest);
 
-      // todo more+better event handling!!
       const auto& pendingReqStr = pendingRequest["command"].get_ref<const nlohmann::json::string_t&>();
 
+      // prepare any necessary update to the response
       switch (hashCalc(pendingReqStr.data(), pendingReqStr.size()))
       {
       case "initialize"_hash:
-        writeJson(createEvent("initialized"), m_stdoutLog);
+        responseJson["body"]["supportsConfigurationDoneRequest"] = true;
+        m_eventQueue.enqueue(createEvent("initialized"));
         break;
       case "pause"_hash:
       case "continue"_hash:
@@ -167,7 +168,7 @@ void ExternDebugHandler::processRequests()
         break;
       case "threads"_hash:
         responseJson["body"]["threads"][0]["name"] = "CPU";
-        responseJson["body"]["threads"][0]["id"] = "0";
+        responseJson["body"]["threads"][0]["id"] = 0;
         break;
       }
       writeJson(responseJson, m_stdoutLog);
@@ -186,6 +187,8 @@ void ExternDebugHandler::stoppedEvent()
 {
   nlohmann::json debugEvent = createEvent("stopped");
   debugEvent["body"]["reason"] = "pause"; 
+  debugEvent["body"]["threadId"] = 0;
+  debugEvent["body"]["allThreadsStopped"] = true;
 
   m_eventQueue.enqueue(debugEvent);
 }
@@ -203,12 +206,19 @@ void ExternDebugHandler::continuedEvent()
 
 //////////////////////////////////////////////////////////////////////////
 
-void ExternDebugHandler::loadCartridgeEvent(const char* cartridgeFile)
+void ExternDebugHandler::loadCartridgeEvent(const Cartridge& cartridge, const char* cartridgeFile)
 {
   nlohmann::json debugEvent = createEvent("process");
   debugEvent["body"]["name"] = cartridgeFile;
-
   m_eventQueue.enqueue(debugEvent);
+
+  debugEvent = createEvent("thread");
+  debugEvent["body"]["reason"] = "started";
+  debugEvent["body"]["threadId"] = 0;
+  m_eventQueue.enqueue(debugEvent);
+
+  // todo: based on cartridge.has_sa1, has_superfx, etc, add more threads.
+  // Is there a deterministic threadId for each cpu core that can be used?
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -235,3 +245,11 @@ nlohmann::json ExternDebugHandler::createEvent(const char* eventType)
     });
 }
 
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::messageOutputEvent(const char* msg)
+{
+  nlohmann::json debugEvent = createEvent("output");
+  debugEvent["body"]["output"] = msg;
+  m_eventQueue.enqueue(debugEvent);
+}

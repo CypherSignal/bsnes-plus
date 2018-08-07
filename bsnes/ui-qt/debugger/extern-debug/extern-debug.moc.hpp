@@ -37,8 +37,8 @@ public:
 
   void stoppedEvent();
   void continuedEvent();
-  void loadCartridgeEvent(const char* cartridgeFile);
-
+  void loadCartridgeEvent(const Cartridge& cartridge, const char* cartridgeFile);
+  void messageOutputEvent(const char* msg);
 public slots:
 
 private:
