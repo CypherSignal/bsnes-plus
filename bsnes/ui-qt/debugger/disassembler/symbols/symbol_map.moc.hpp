@@ -112,7 +112,7 @@ public:
   SymbolFileAdapters *adapters;
 
 private:
-  
+
   struct AddressToSourceLine {
     uint32_t address;
     uint32_t file;
@@ -122,12 +122,15 @@ private:
   };
   nall::linear_vector<AddressToSourceLine> addressToSourceLineMappings;
 
+  bool tryLoadSourceFile(const char* filename, string& sourceFileData);
+
   struct SourceFileInformation {
     string filename;
     unsigned long checksum;
   };
   linear_vector<SourceFileInformation> sourceFiles;
   linear_vector<lstring> sourceFileLines;
+  lstring sourceFilePaths;
 
 signals:
   void updated();

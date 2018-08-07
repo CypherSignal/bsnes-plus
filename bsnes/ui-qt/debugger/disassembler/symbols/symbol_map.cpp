@@ -85,16 +85,15 @@ void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &
 
   string sourceFileData;
   if (fileId < sourceFileLines.size() && sourceFileLines[fileId].size() > 0) {
-    // SYMBOLS-TODO this might be crashing?
-    //debugger->echo(string() << "WARNING: While parsing symbols, file index " << fileId << " appeared for file \"" << sourceFiles[fileId].filename << "\" and \"" << filename << "\". Disassembly listing for either of these may be incorrect or unavailable.<br>");
+    debugger->echo(string() << "WARNING: While parsing symbols, file index " << fileId << " appeared for file \"" << sourceFiles[fileId].filename << "\" and \"" << filename << "\". Disassembly listing for either of these may be incorrect or unavailable.<br>");
   }
-  else if (sourceFileData.readfile(filename)) {
+  else if (tryLoadSourceFile(filename, sourceFileData)) {
     unsigned long local_checksum = crc32_calculate((const uint8_t*)(sourceFileData()), sourceFileData.length());
     if (checksum != local_checksum) {
-      // SYMBOLS-TODO this might be crashing?
-      //debugger->echo(string() << "WARNING: \"" << sourceFiles[fileId].filename << "\" has been modified since the ROM's symbols were built. Disassembly listing for this file may be incorrect or unavailable.<br>");
+      debugger->echo(string() << "WARNING: \"" << sourceFiles[fileId].filename << "\" has been modified since the ROM's symbols were built. Disassembly listing for this file may be incorrect or unavailable.<br>");
     }
     else {
+      debugger->echo(string() << "Loaded source file " << filename << ".<br>");
       SourceFileInformation newFileInfo;
       newFileInfo.checksum = checksum;
       newFileInfo.filename = filename;
@@ -102,6 +101,22 @@ void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &
       sourceFileLines[fileId].split("\n", sourceFileData);
     }
   }
+}
+
+// ------------------------------------------------------------------------
+
+bool SymbolMap::tryLoadSourceFile(const char* filename, string& sourceFileData)
+{
+  if (sourceFileData.readfile(filename))
+    return true;
+
+  for (unsigned i = 0; i < sourceFilePaths.size(); ++i)
+  {
+    if (sourceFileData.readfile(string(sourceFilePaths[i], "/" , filename)))
+      return true;
+  }
+
+  return false;
 }
 
 // ------------------------------------------------------------------------
@@ -309,6 +324,11 @@ void SymbolMap::loadFromFile(const string &baseName, const string &ext) {
     return;
   }
 
+  debugger->echo(string() << "Loading symbols from " << fileName << ".<br>");
+
+  sourceFilePaths.reset();
+  sourceFilePaths.append(nall::dir(fileName));
+
   int size = f.size();
   char *buffer = new char[size + 1];
   buffer[size] = 0;
@@ -318,8 +338,6 @@ void SymbolMap::loadFromFile(const string &baseName, const string &ext) {
   delete[] buffer;
 
   f.close();
-
-  debugger->echo(string() << "Found symbols at " << fileName << ".<br>");
 }
 
 // ------------------------------------------------------------------------
