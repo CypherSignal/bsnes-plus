@@ -170,6 +170,9 @@ void ExternDebugHandler::processRequests()
         responseJson["body"]["threads"][0]["name"] = "CPU";
         responseJson["body"]["threads"][0]["id"] = 0;
         break;
+      case "stackTrace"_hash:
+        handleStackTraceRequest(responseJson, pendingRequest);
+        break;
       }
       writeJson(responseJson, m_stdoutLog);
     }
@@ -219,6 +222,23 @@ void ExternDebugHandler::loadCartridgeEvent(const Cartridge& cartridge, const ch
 
   // todo: based on cartridge.has_sa1, has_superfx, etc, add more threads.
   // Is there a deterministic threadId for each cpu core that can be used?
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
+{
+  unsigned stackFrameCount = 1; // 1 to allow for the pc 
+  responseJson["body"]["totalFrames"] = stackFrameCount;
+
+  char stackName[32];
+
+  snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
+
+  responseJson["body"]["stackFrames"][0]["id"] = 0;
+  responseJson["body"]["stackFrames"][0]["name"] = stackName;
+  responseJson["body"]["stackFrames"][0]["line"] = 0;
+  responseJson["body"]["stackFrames"][0]["column"] = 0;
 }
 
 //////////////////////////////////////////////////////////////////////////
