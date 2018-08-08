@@ -89,7 +89,7 @@ public:
   void addSymbol(uint32_t address, const Symbol &name);
   void addCommand(uint32_t id, const string &content);
   void addSourceLine(uint32_t address, uint32_t file, uint32_t line);
-  void addSourceFile(uint32_t fileId, uint32_t checksum, const string &filename);
+  void addSourceFile(uint32_t fileId, uint32_t checksum, const string &includeFilePath);
   void removeSymbol(uint32_t address, Symbol::Type type);
   void finishUpdates();
 
@@ -105,7 +105,8 @@ public:
   int32_t getSymbolIndex(uint32_t address);
   bool getSourceLineLocation(uint32_t address, uint32_t& outFile, uint32_t &outLine);
   const char* getSourceLineFromLocation(uint32_t file, uint32_t line);
-  const char* getSourceFilename(uint32_t file);
+  const char* getSourceIncludeFilePath(uint32_t file);
+  const char* getSourceResolvedFilePath(uint32_t file);
 
   bool isValid;
   SymbolsLists symbols;
@@ -122,11 +123,12 @@ private:
   };
   nall::linear_vector<AddressToSourceLine> addressToSourceLineMappings;
 
-  bool tryLoadSourceFile(const char* filename, string& sourceFileData);
+  bool tryLoadSourceFile(const char* includeFilepath, string& sourceFileData, string& resolvedFilePath);
 
   struct SourceFileInformation {
-    string filename;
+    string filename; // filename as it exists from the symbol file
     unsigned long checksum;
+    string resolvedFilePath; // filename as it was loaded from disc
   };
   linear_vector<SourceFileInformation> sourceFiles;
   linear_vector<lstring> sourceFileLines;

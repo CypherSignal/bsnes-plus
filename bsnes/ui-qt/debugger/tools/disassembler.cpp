@@ -122,7 +122,7 @@ void Disassembler::refresh(Source source, unsigned addr) {
         predictedSourceLocFile = currentSourceLocFile;
         predictedSourceLocLine = currentSourceLocLine;
 
-        const char* file = symbols->getSourceFilename(currentSourceLocFile);
+        const char* file = symbols->getSourceIncludeFilePath(currentSourceLocFile);
         char lineString[256];
         snprintf(lineString, 256, "</td><td>---------- %s", file ? file : "???");
         htmlOutput << lineString << "</td></tr><tr><td>";

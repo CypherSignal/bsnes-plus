@@ -81,22 +81,23 @@ void SymbolMap::addSourceLine(uint32_t address, uint32_t file, uint32_t line) {
 }
 
 // ------------------------------------------------------------------------
-void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &filename) {
+void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &includeFilePath) {
 
-  string sourceFileData;
+  string sourceFileData, resolvedFilePath;
   if (fileId < sourceFileLines.size() && sourceFileLines[fileId].size() > 0) {
-    debugger->echo(string() << "WARNING: While parsing symbols, file index " << fileId << " appeared for file \"" << sourceFiles[fileId].filename << "\" and \"" << filename << "\". Disassembly listing for either of these may be incorrect or unavailable.<br>");
+    debugger->echo(string() << "WARNING: While parsing symbols, file index " << fileId << " appeared for file \"" << sourceFiles[fileId].filename << "\" and \"" << includeFilePath << "\". Disassembly listing for either of these may be incorrect or unavailable.<br>");
   }
-  else if (tryLoadSourceFile(filename, sourceFileData)) {
+  else if (tryLoadSourceFile(includeFilePath, sourceFileData, resolvedFilePath)) {
     unsigned long local_checksum = crc32_calculate((const uint8_t*)(sourceFileData()), sourceFileData.length());
     if (checksum != local_checksum) {
       debugger->echo(string() << "WARNING: \"" << sourceFiles[fileId].filename << "\" has been modified since the ROM's symbols were built. Disassembly listing for this file may be incorrect or unavailable.<br>");
     }
     else {
-      debugger->echo(string() << "Loaded source file " << filename << ".<br>");
+      debugger->echo(string() << "Loaded source file " << includeFilePath << ".<br>");
       SourceFileInformation newFileInfo;
       newFileInfo.checksum = checksum;
-      newFileInfo.filename = filename;
+      newFileInfo.filename = includeFilePath;
+      newFileInfo.resolvedFilePath = resolvedFilePath;
       sourceFiles[fileId] = newFileInfo;
       sourceFileLines[fileId].split("\n", sourceFileData);
     }
@@ -104,16 +105,24 @@ void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &
 }
 
 // ------------------------------------------------------------------------
-
-bool SymbolMap::tryLoadSourceFile(const char* filename, string& sourceFileData)
+bool SymbolMap::tryLoadSourceFile(const char* includeFilepath, string& sourceFileData, string& resolvedFilePath)
 {
-  if (sourceFileData.readfile(filename))
+  resolvedFilePath = string();
+  if (sourceFileData.readfile(includeFilepath))
+  {
+    resolvedFilePath = nall::realpath(includeFilepath);
     return true;
+  }
 
+  string tempResolvedFilePath;
   for (unsigned i = 0; i < sourceFilePaths.size(); ++i)
   {
-    if (sourceFileData.readfile(string(sourceFilePaths[i], "/" , filename)))
+    tempResolvedFilePath = string(sourceFilePaths[i], "/", includeFilepath);
+    if (sourceFileData.readfile(tempResolvedFilePath))
+    {
+      resolvedFilePath = tempResolvedFilePath;
       return true;
+    }
   }
 
   return false;
@@ -283,10 +292,21 @@ const char* SymbolMap::getSourceLineFromLocation(uint32_t file, uint32_t line)
 }
 
 // ------------------------------------------------------------------------
-const char* SymbolMap::getSourceFilename(uint32_t file)
+const char* SymbolMap::getSourceIncludeFilePath(uint32_t file)
 {
   if (file < sourceFiles.size()) {
     return (const char*)sourceFiles[file].filename();
+  }
+  else {
+    return nullptr;
+  }
+}
+
+// ------------------------------------------------------------------------
+const char* SymbolMap::getSourceResolvedFilePath(uint32_t file)
+{
+  if (file < sourceFiles.size()) {
+    return (const char*)sourceFiles[file].resolvedFilePath();
   }
   else {
     return nullptr;

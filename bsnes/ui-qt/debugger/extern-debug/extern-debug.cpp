@@ -230,15 +230,40 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
 {
   unsigned stackFrameCount = 1; // 1 to allow for the pc 
   responseJson["body"]["totalFrames"] = stackFrameCount;
-
-  char stackName[32];
-
-  snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
-
   responseJson["body"]["stackFrames"][0]["id"] = 0;
-  responseJson["body"]["stackFrames"][0]["name"] = stackName;
-  responseJson["body"]["stackFrames"][0]["line"] = 0;
   responseJson["body"]["stackFrames"][0]["column"] = 0;
+
+
+  SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
+  uint32_t file = 0;
+  uint32_t line = 0;
+
+  if (symbolMap && symbolMap->getSourceLineLocation(SNES::cpu.regs.pc, file, line))
+  {
+    char stackName[32];
+    snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
+    responseJson["body"]["stackFrames"][0]["name"] = stackName; // todo - this should sample function name (will need to add func to symbol_map)
+    responseJson["body"]["stackFrames"][0]["line"] = line;
+
+    if (const char* srcFilename = symbolMap->getSourceIncludeFilePath(file))
+    {
+      responseJson["body"]["stackFrames"][0]["source"]["name"] = srcFilename;
+    }
+
+    if (const char* resolvedFilename = symbolMap->getSourceResolvedFilePath(file))
+    {
+      responseJson["body"]["stackFrames"][0]["source"]["path"] = resolvedFilename;
+      responseJson["body"]["stackFrames"][0]["source"]["origin"] = "file";
+    }
+  }
+  else
+  {
+    char stackName[32];
+    snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
+    responseJson["body"]["stackFrames"][0]["name"] = stackName;
+    responseJson["body"]["stackFrames"][0]["line"] = 0;
+
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////
