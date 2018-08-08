@@ -107,6 +107,8 @@ public:
   const char* getSourceLineFromLocation(uint32_t file, uint32_t line);
   const char* getSourceIncludeFilePath(uint32_t file);
   const char* getSourceResolvedFilePath(uint32_t file);
+  bool getFileIdFromPath(const char* resolvedFilePath, uint32_t& outFile);
+  bool getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddress, uint32_t& outLine);
 
   bool isValid;
   SymbolsLists symbols;

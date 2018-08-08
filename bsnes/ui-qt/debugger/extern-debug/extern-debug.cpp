@@ -176,6 +176,9 @@ void ExternDebugHandler::processRequests()
       case "launch"_hash:
         handleLaunchRequest(pendingRequest);
         break;
+      case "setBreakpoints"_hash:
+        handleSetBreakpointRequest(responseJson, pendingRequest);
+        break;
       }
       writeJson(responseJson, m_stdoutLog);
     }
@@ -280,12 +283,54 @@ void ExternDebugHandler::handleLaunchRequest(const nlohmann::json &pendingReques
   if (launchArguments["program"].is_string())
   {
     const auto& cartridgeFilename = launchArguments["program"].get_ref<const nlohmann::json::string_t&>();
-    cartridge.loadNormal(cartridgeFilename.data());
+    char cartridgeResolvedFilepath[PATH_MAX];
+    ::realpath(cartridgeFilename.data(), cartridgeResolvedFilepath);
+    messageOutputEvent(cartridgeResolvedFilepath);
+    cartridge.loadNormal(cartridgeResolvedFilepath);
   }
 
   if (launchArguments["stopOnEntry"].is_boolean() && launchArguments["stopOnEntry"].get<bool>())
   {
     debugger->toggleRunStatus();
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
+{
+  const nlohmann::json& sourceArg = pendingRequest["arguments"]["source"];
+
+  SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
+  uint32_t file = 0;
+  uint32_t line = 0;
+
+  // todo: this wipes out all breakpoints across all files, right?
+  breakpointEditor->clear();
+
+  if (sourceArg["path"].is_string())
+  {
+    const auto& sourcePath = sourceArg["path"].get_ref<const nlohmann::json::string_t&>();
+    if (symbolMap->getFileIdFromPath(sourcePath.data(), file))
+    {
+      for (const auto& breakpoint : pendingRequest["arguments"]["breakpoints"])
+      {
+        line = breakpoint["line"];
+        uint32_t discoveredLine = 0;
+        uint32_t address = 0;
+        bool foundLine = symbolMap->getSourceAddress(file, line, address, discoveredLine);
+
+        char addrString[16];
+        snprintf(addrString, 16, "%.8x", address);
+        breakpointEditor->addBreakpoint(addrString, "x", "cpu");
+
+        responseJson["body"]["breakpoints"].push_back({
+            {"verified", foundLine },
+            {"line", discoveredLine},
+            {"source", {"path", sourcePath} }
+          });
+      }
+    }
   }
 }
 

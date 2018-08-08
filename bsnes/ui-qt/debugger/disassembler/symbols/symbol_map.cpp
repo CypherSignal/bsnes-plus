@@ -107,10 +107,11 @@ void SymbolMap::addSourceFile(uint32_t fileId, uint32_t checksum, const string &
 // ------------------------------------------------------------------------
 bool SymbolMap::tryLoadSourceFile(const char* includeFilepath, string& sourceFileData, string& resolvedFilePath)
 {
+  char resolvedPathChrs[PATH_MAX];
   resolvedFilePath = string();
   if (sourceFileData.readfile(includeFilepath))
   {
-    resolvedFilePath = nall::realpath(includeFilepath);
+    resolvedFilePath = ::realpath(includeFilepath, resolvedPathChrs);
     return true;
   }
 
@@ -120,7 +121,7 @@ bool SymbolMap::tryLoadSourceFile(const char* includeFilepath, string& sourceFil
     tempResolvedFilePath = string(sourceFilePaths[i], "/", includeFilepath);
     if (sourceFileData.readfile(tempResolvedFilePath))
     {
-      resolvedFilePath = tempResolvedFilePath;
+      resolvedFilePath = ::realpath(tempResolvedFilePath, resolvedPathChrs);
       return true;
     }
   }
@@ -311,6 +312,35 @@ const char* SymbolMap::getSourceResolvedFilePath(uint32_t file)
   else {
     return nullptr;
   }
+}
+
+// ------------------------------------------------------------------------
+bool SymbolMap::getFileIdFromPath(const char* resolvedFilePath, uint32_t& outFile)
+{
+  for (unsigned i = 0; i < sourceFiles.size(); ++i)
+  {
+    if (sourceFiles[i].resolvedFilePath == resolvedFilePath)
+    {
+      outFile = i;
+      return true;
+    }
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------------
+bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddress, uint32_t& outLine)
+{
+  for (unsigned i = 0; i < addressToSourceLineMappings.size(); ++i)
+  {
+    if (addressToSourceLineMappings[i].file == file && addressToSourceLineMappings[i].line >= line)
+    {
+      outAddress = addressToSourceLineMappings[i].address;
+      outLine = addressToSourceLineMappings[i].line;
+      return true;
+    }
+  }
+  return false;
 }
 
 // ------------------------------------------------------------------------
