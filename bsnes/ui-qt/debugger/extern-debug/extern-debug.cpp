@@ -173,6 +173,9 @@ void ExternDebugHandler::processRequests()
       case "stackTrace"_hash:
         handleStackTraceRequest(responseJson, pendingRequest);
         break;
+      case "launch"_hash:
+        handleLaunchRequest(pendingRequest);
+        break;
       }
       writeJson(responseJson, m_stdoutLog);
     }
@@ -263,6 +266,24 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
     responseJson["body"]["stackFrames"][0]["name"] = stackName;
     responseJson["body"]["stackFrames"][0]["line"] = 0;
 
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::handleLaunchRequest(const nlohmann::json &pendingRequest)
+{
+  // todo extract the fileBrowser::onAcceptCartridge logic to have the decision of
+  // what kind of rom we're loading not be handled by UI, so that this can call that directly
+  if (pendingRequest["arguments"]["program"].is_string())
+  {
+    const auto& cartridgeFilename = pendingRequest["arguments"]["program"].get_ref<const nlohmann::json::string_t&>();
+    cartridge.loadNormal(cartridgeFilename.data());
+  }
+
+  if (pendingRequest["arguments"]["stopOnEntry"].is_boolean() && pendingRequest["arguments"]["stopOnEntry"].get<bool>())
+  {
+    debugger->toggleRunStatus();
   }
 }
 
