@@ -233,9 +233,10 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
 {
   unsigned stackFrameCount = 1; // 1 to allow for the pc 
   responseJson["body"]["totalFrames"] = stackFrameCount;
-  responseJson["body"]["stackFrames"][0]["id"] = 0;
-  responseJson["body"]["stackFrames"][0]["column"] = 0;
+  nlohmann::json& responseStackFrames = responseJson["body"]["stackFrames"];
 
+  responseStackFrames[0]["id"] = 0;
+  responseStackFrames[0]["column"] = 0;
 
   SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
   uint32_t file = 0;
@@ -245,27 +246,26 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
   {
     char stackName[32];
     snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
-    responseJson["body"]["stackFrames"][0]["name"] = stackName; // todo - this should sample function name (will need to add func to symbol_map)
-    responseJson["body"]["stackFrames"][0]["line"] = line;
+    responseStackFrames[0]["name"] = stackName; // todo - this should sample function name (will need to add func to symbol_map)
+    responseStackFrames[0]["line"] = line;
 
     if (const char* srcFilename = symbolMap->getSourceIncludeFilePath(file))
     {
-      responseJson["body"]["stackFrames"][0]["source"]["name"] = srcFilename;
+      responseStackFrames[0]["source"]["name"] = srcFilename;
     }
 
     if (const char* resolvedFilename = symbolMap->getSourceResolvedFilePath(file))
     {
-      responseJson["body"]["stackFrames"][0]["source"]["path"] = resolvedFilename;
-      responseJson["body"]["stackFrames"][0]["source"]["origin"] = "file";
+      responseStackFrames[0]["source"]["path"] = resolvedFilename;
+      responseStackFrames[0]["source"]["origin"] = "file";
     }
   }
   else
   {
     char stackName[32];
     snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
-    responseJson["body"]["stackFrames"][0]["name"] = stackName;
-    responseJson["body"]["stackFrames"][0]["line"] = 0;
-
+    responseStackFrames[0]["name"] = stackName;
+    responseStackFrames[0]["line"] = 0;
   }
 }
 
@@ -273,15 +273,17 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
 
 void ExternDebugHandler::handleLaunchRequest(const nlohmann::json &pendingRequest)
 {
+  const nlohmann::json& launchArguments = pendingRequest["arguments"];
+
   // todo extract the fileBrowser::onAcceptCartridge logic to have the decision of
   // what kind of rom we're loading not be handled by UI, so that this can call that directly
-  if (pendingRequest["arguments"]["program"].is_string())
+  if (launchArguments["program"].is_string())
   {
-    const auto& cartridgeFilename = pendingRequest["arguments"]["program"].get_ref<const nlohmann::json::string_t&>();
+    const auto& cartridgeFilename = launchArguments["program"].get_ref<const nlohmann::json::string_t&>();
     cartridge.loadNormal(cartridgeFilename.data());
   }
 
-  if (pendingRequest["arguments"]["stopOnEntry"].is_boolean() && pendingRequest["arguments"]["stopOnEntry"].get<bool>())
+  if (launchArguments["stopOnEntry"].is_boolean() && launchArguments["stopOnEntry"].get<bool>())
   {
     debugger->toggleRunStatus();
   }
