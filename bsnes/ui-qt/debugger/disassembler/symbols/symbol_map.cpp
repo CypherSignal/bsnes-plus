@@ -278,6 +278,14 @@ bool SymbolMap::getSourceLineLocation(uint32_t address, uint32_t& outFile, uint3
     }
   }
 
+  // we may not have gotten the exact address, but if "right" and "left" indices are surrounding it, then we want "right"'s result
+  if (addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address)
+  {
+    outFile = addressToSourceLineMappings[right].file;
+    outLine = addressToSourceLineMappings[right].line;
+    return true;
+  }
+
   return false;
 }
 
@@ -331,15 +339,35 @@ bool SymbolMap::getFileIdFromPath(const char* resolvedFilePath, uint32_t& outFil
 // ------------------------------------------------------------------------
 bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddress, uint32_t& outLine)
 {
+  uint32_t closestAddr = 0;
+  uint32_t closestLine = 0;
+  uint32_t closestLineDelta = UINT_MAX;
   for (unsigned i = 0; i < addressToSourceLineMappings.size(); ++i)
   {
-    if (addressToSourceLineMappings[i].file == file && addressToSourceLineMappings[i].line >= line)
+    if (addressToSourceLineMappings[i].file == file)
     {
-      outAddress = addressToSourceLineMappings[i].address;
-      outLine = addressToSourceLineMappings[i].line;
-      return true;
+      if (addressToSourceLineMappings[i].line == line)
+      {
+        outAddress = addressToSourceLineMappings[i].address;
+        outLine = addressToSourceLineMappings[i].line;
+        return true;
+      }
+      else if (addressToSourceLineMappings[i].line > line && addressToSourceLineMappings[i].line - line < closestLineDelta)
+      {
+        closestLineDelta = addressToSourceLineMappings[i].line - line;
+        closestAddr = addressToSourceLineMappings[i].address;
+        closestLine = addressToSourceLineMappings[i].line;
+      }
     }
   }
+
+  if (closestLineDelta != UINT_MAX)
+  {
+    outAddress = closestAddr;
+    outLine = closestLine;
+    return true;
+  }
+
   return false;
 }
 

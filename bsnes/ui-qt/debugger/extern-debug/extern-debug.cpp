@@ -37,19 +37,23 @@ constexpr unsigned long operator "" _hash(const char* ch, size_t len)
 void RequestListenerThread::run()
 {
   // todo: make the log optional
-  m_stdinLog = fopen("requestLog.txt", "wb");
+  m_stdinLog = fopen("stdin_monitor.txt", "wb");
 
   // check if stdin is set up for reading (e.g. we only launched a window without any attachment)
   // TODO: how can vscode be set up for a delayed attach to bsnes? what comms happens over stdin in that case?
+  
+  FILE* requestInput = stdin;
   {
     fprintf(m_stdinLog, "Checking stdin fstat\n");
     struct stat stdinStat;
-    if (fstat(fileno(stdin), &stdinStat) != 0)
+    if (fstat(fileno(requestInput), &stdinStat) != 0)
     {
       fclose(m_stdinLog);
       return;
     }
   }
+  
+  m_requestLog = fopen("requestLog.txt", "wb");
   fprintf(m_stdinLog, "Entering stdin loop\n");
 
   const int MaxWarnings = 50;
@@ -60,13 +64,15 @@ void RequestListenerThread::run()
 
   char contentLengthStr[64];
   int contentLength = 0;
-  while (!feof(stdin))
+  while (!feof(requestInput))
   {
     fprintf(m_stdinLog, "Reading input\n");
     fflush(m_stdinLog);
 
     // fetch a line from stdin and scan it for content header
-    fgets(contentLengthStr, 64, stdin);
+    fgets(contentLengthStr, 64, requestInput);
+    fputs(contentLengthStr, m_requestLog);
+
     // todo: error handling for when the scan fails
     if (sscanf(contentLengthStr, "Content-Length: %d\r\n", &contentLength) != 1)
     {
@@ -76,17 +82,23 @@ void RequestListenerThread::run()
       else
         break;
     }
-    // capture the additional /r/n from the content header
-    fgets(contentLengthStr, 64, stdin);
 
+    // capture the additional /r/n from the content header
+    fgets(contentLengthStr, 64, requestInput);
+    fputs(contentLengthStr, m_requestLog);
     fprintf(m_stdinLog, "Reading content-length: %d\n", contentLength);
 
+    // read in and parse the actual json content
     contentLength += 1; // add 1 to allow for null-terminator in fgets
     contentString.reserve(contentLength);
-    fgets(contentString(), contentLength, stdin);
+    fgets(contentString(), contentLength, requestInput);
+    fputs(contentString(), m_requestLog);
+    fputs("\r\n", m_requestLog);
 
-    // mirror the input to a file
     fprintf(m_stdinLog, "%s\r\n", contentString());
+    
+    fflush(m_requestLog);
+
 
     nlohmann::json jsonObj = nlohmann::json::parse(contentString(), contentString() + contentString.length(), nullptr, false);
     // todo: more robust handling required - need to check if the json obj is _compatible_
@@ -97,6 +109,7 @@ void RequestListenerThread::run()
     }
   }
   fclose(m_stdinLog);
+  fclose(m_requestLog);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -310,36 +323,85 @@ void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson
 
 void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
 {
+  // First, assemble a list of programAddresses and stackFrameAddresses
+  nall::linear_vector<uint32_t> programAddresses;
+  nall::linear_vector<uint32_t> stackFrameAddresses;
+
   unsigned stackFrameCount = SNES::cpu.stackFrames.count + 1; // 1 to allow for the pc
-  responseJson["body"]["totalFrames"] = stackFrameCount;
+  programAddresses.reserve(stackFrameCount);
+  stackFrameAddresses.reserve(stackFrameCount);
+  
+  programAddresses.append(SNES::cpu.regs.pc);
+  stackFrameAddresses.append(0);
 
-  char stackName[64];
-
-  snprintf(stackName, 32, "0x%.6x", SNES::cpu.regs.pc);
-  uint8_t prevBank = SNES::cpu.regs.pc.b;
-
-  responseJson["body"]["stackFrames"][0]["id"] = 0;
-  responseJson["body"]["stackFrames"][0]["name"] = stackName;
-  responseJson["body"]["stackFrames"][0]["line"] = 0;
-  responseJson["body"]["stackFrames"][0]["column"] = 0;
-
-  for (unsigned i = 1, framePtrIdx = SNES::cpu.stackFrames.count-1; i < stackFrameCount; ++i, --framePtrIdx)
+  if (SNES::cpu.stackFrames.count >= 1)
   {
-    uint32_t framePtr = SNES::cpu.stackFrames.frameAddr[framePtrIdx];
-    uint32_t origFramePtr = framePtr;
-    bool extendedAddr = SNES::cpu.stackFrames.frameAddrIs24bit[framePtrIdx];
-    // if the framePtr is only 16-bits (jsr & rts) then we must be in the same bank
-    uint8_t l = SNES::cpu.disassembler_read(++framePtr);
-    uint8_t h = SNES::cpu.disassembler_read(++framePtr);
-    uint8_t b = extendedAddr ? SNES::cpu.disassembler_read(++framePtr) : prevBank;
+    uint8_t prevBank = SNES::cpu.regs.pc.b;
+    for (int framePtrIdx = SNES::cpu.stackFrames.count - 1; framePtrIdx >= 0; --framePtrIdx)
+    {
+      uint32_t framePtr = SNES::cpu.stackFrames.frameAddr[framePtrIdx];
 
-    snprintf(stackName, 32, "0x%.2x%.2x%.2x via 0x%.6x", b, h, l, origFramePtr);
-    prevBank = b;
+      stackFrameAddresses.append(framePtr);
 
-    responseJson["body"]["stackFrames"][i]["id"] = 0;
-    responseJson["body"]["stackFrames"][i]["name"] = stackName;
-    responseJson["body"]["stackFrames"][i]["line"] = 0;
-    responseJson["body"]["stackFrames"][i]["column"] = 0;
+      uint32_t newAddr = 0;
+
+      newAddr |= SNES::cpu.disassembler_read(++framePtr);
+      newAddr |= SNES::cpu.disassembler_read(++framePtr) << 8;
+      
+      // if the framePtr is only 16-bits (jsr & rts) then we must be in the same bank, so implicitly use the last bank read
+      bool extendedAddr = SNES::cpu.stackFrames.frameAddrIs24bit[framePtrIdx];
+      uint8_t b = extendedAddr ? SNES::cpu.disassembler_read(++framePtr) : prevBank;
+      prevBank = b;
+      newAddr |= b << 16;
+
+      programAddresses.append(newAddr);
+    }
+  }
+  
+  // Then fill out the responseJson with the addresses fetched above
+  responseJson["body"]["totalFrames"] = stackFrameCount;
+  SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
+  for (unsigned i = 0; i < programAddresses.size(); ++i)
+  {
+    nlohmann::json& responseStackFrame = responseJson["body"]["stackFrames"][i];
+    uint32_t pcAddr = programAddresses[i];
+    uint32_t stackFrameAddr = (i <= stackFrameAddresses.size() ? stackFrameAddresses[i] : 0);
+    uint32_t file = 0;
+    uint32_t line = 0;
+
+    if (symbolMap && symbolMap->getSourceLineLocation(pcAddr, file, line))
+    {
+      responseStackFrame["line"] = line;
+
+      if (const char* srcFilename = symbolMap->getSourceIncludeFilePath(file))
+      {
+        responseStackFrame["source"]["name"] = srcFilename;
+      }
+
+      if (const char* resolvedFilename = symbolMap->getSourceResolvedFilePath(file))
+      {
+        responseStackFrame["source"]["path"] = resolvedFilename;
+        responseStackFrame["source"]["origin"] = "file";
+      }
+    }
+    else
+    {
+      responseStackFrame["line"] = 0;
+    }
+
+    char stackName[64];
+    if (stackFrameAddr != 0)
+    {
+      snprintf(stackName, 64, "0x%.6x (via 0x%.6x)", pcAddr, stackFrameAddr);
+    }
+    else
+    {
+      snprintf(stackName, 64, "0x%.6x", pcAddr);
+    }
+    responseStackFrame["name"] = stackName;
+    responseStackFrame["id"] = 0;
+    responseStackFrame["column"] = 0;
+
   }
 }
 
