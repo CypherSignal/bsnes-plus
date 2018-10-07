@@ -151,6 +151,7 @@ void ExternDebugHandler::processRequests()
       {
       case "initialize"_hash:
         responseJson["body"]["supportsConfigurationDoneRequest"] = true;
+        responseJson["body"]["supportsRestartRequest"] = true;
         m_eventQueue.enqueue(createEvent("initialized"));
         break;
       case "pause"_hash:
@@ -176,6 +177,9 @@ void ExternDebugHandler::processRequests()
       case "launch"_hash:
         handleLaunchRequest(pendingRequest);
         break;
+      case "restart"_hash:
+        handleRestartRequest(pendingRequest);
+      break;
       case "setBreakpoints"_hash:
         handleSetBreakpointRequest(responseJson, pendingRequest);
         break;
@@ -293,6 +297,15 @@ void ExternDebugHandler::handleLaunchRequest(const nlohmann::json &pendingReques
   {
     debugger->toggleRunStatus();
   }
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::handleRestartRequest(const nlohmann::json& pendingRequest)
+{
+  string prevCartridgeName = cartridge.baseName;
+  cartridge.unload();
+  cartridge.loadNormal(prevCartridgeName);
 }
 
 //////////////////////////////////////////////////////////////////////////

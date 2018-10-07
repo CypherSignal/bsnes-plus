@@ -44,6 +44,7 @@ public slots:
 private:
   void handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
   void handleLaunchRequest(const nlohmann::json &pendingRequest);
+  void handleRestartRequest(const nlohmann::json& pendingRequest);
   void handleSetBreakpointRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
 
   nlohmann::json createResponse(const nlohmann::json& request);
