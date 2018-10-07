@@ -199,8 +199,8 @@ void SymbolMap::revalidate() {
 }
 
 // ------------------------------------------------------------------------
-Symbol SymbolMap::getSymbol(uint32_t address) {
-  int32_t index = getSymbolIndex(address);
+Symbol SymbolMap::getSymbol(uint32_t address, AddressMatch addressMatch) {
+  int32_t index = getSymbolIndex(address, addressMatch);
   if (index == -1) {
     return Symbol::createInvalid();
   }
@@ -209,8 +209,8 @@ Symbol SymbolMap::getSymbol(uint32_t address) {
 }
 
 // ------------------------------------------------------------------------
-Symbol SymbolMap::getComment(uint32_t address) {
-  int32_t index = getSymbolIndex(address);
+Symbol SymbolMap::getComment(uint32_t address, AddressMatch addressMatch) {
+  int32_t index = getSymbolIndex(address, addressMatch);
   if (index == -1) {
     return Symbol::createInvalid();
   }
@@ -219,8 +219,8 @@ Symbol SymbolMap::getComment(uint32_t address) {
 }
 
 // ------------------------------------------------------------------------
-Symbol SymbolMap::getSourceLine(uint32_t address) {
-  int32_t index = getSymbolIndex(address);
+Symbol SymbolMap::getSourceLine(uint32_t address, AddressMatch addressMatch) {
+  int32_t index = getSymbolIndex(address, addressMatch);
   if (index == -1) {
     return Symbol::createInvalid();
   }
@@ -229,7 +229,7 @@ Symbol SymbolMap::getSourceLine(uint32_t address) {
 }
 
 // ------------------------------------------------------------------------
-int32_t SymbolMap::getSymbolIndex(uint32_t address) {
+int32_t SymbolMap::getSymbolIndex(uint32_t address, AddressMatch addressMatch) {
   revalidate();
 
   int32_t left = 0;
@@ -250,11 +250,17 @@ int32_t SymbolMap::getSymbolIndex(uint32_t address) {
     }
   }
 
+  // we may not have gotten the exact address, but if "right" and "left" indices are surrounding it, then we want "right"'s result
+  if (addressMatch == AddressMatch_Closest && symbols[right].address < address && symbols[left].address > address)
+  {
+    return right;
+  }
+
   return -1;
 }
 
 // ------------------------------------------------------------------------
-bool SymbolMap::getSourceLineLocation(uint32_t address, uint32_t& outFile, uint32_t &outLine)
+bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine)
 {
   revalidate();
 
@@ -279,7 +285,7 @@ bool SymbolMap::getSourceLineLocation(uint32_t address, uint32_t& outFile, uint3
   }
 
   // we may not have gotten the exact address, but if "right" and "left" indices are surrounding it, then we want "right"'s result
-  if (addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address)
+  if (addressMatch == AddressMatch_Closest && addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address)
   {
     outFile = addressToSourceLineMappings[right].file;
     outLine = addressToSourceLineMappings[right].line;
@@ -337,7 +343,7 @@ bool SymbolMap::getFileIdFromPath(const char* resolvedFilePath, uint32_t& outFil
 }
 
 // ------------------------------------------------------------------------
-bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddress, uint32_t& outLine)
+bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, AddressMatch addressMatch, uint32_t& outAddress, uint32_t& outLine)
 {
   uint32_t closestAddr = 0;
   uint32_t closestLine = 0;
@@ -361,7 +367,7 @@ bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddr
     }
   }
 
-  if (closestLineDelta != UINT_MAX)
+  if (addressMatch == AddressMatch_Closest && closestLineDelta != UINT_MAX)
   {
     outAddress = closestAddr;
     outLine = closestLine;
@@ -373,7 +379,7 @@ bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddr
 
 // ------------------------------------------------------------------------
 void SymbolMap::removeSymbol(uint32_t address, Symbol::Type type) {
-  int32_t index = getSymbolIndex(address);
+  int32_t index = getSymbolIndex(address, AddressMatch_Exact);
   if (index == -1) {
     return;
   }

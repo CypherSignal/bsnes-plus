@@ -116,7 +116,7 @@ void Disassembler::refresh(Source source, unsigned addr) {
     unsigned int currentSourceLocFile = 0;
     unsigned int currentSourceLocLine = 0;
 
-    if (symbols != nullptr && symbols->getSourceLineLocation(line[i], currentSourceLocFile, currentSourceLocLine)) {
+    if (symbols != nullptr && symbols->getSourceLineLocation(line[i], SymbolMap::AddressMatch_Exact, currentSourceLocFile, currentSourceLocLine)) {
       // re-set the previous line location in case we changed files, or jumped around the same file
       if (predictedSourceLocFile != currentSourceLocFile || (predictedSourceLocLine < currentSourceLocLine - 5 || predictedSourceLocLine > currentSourceLocLine)) {
         predictedSourceLocFile = currentSourceLocFile;

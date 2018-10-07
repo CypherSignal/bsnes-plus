@@ -82,6 +82,14 @@ class SymbolMap : public QObject {
 public:
   SymbolMap();
 
+  // for functions that support it, defines whether address searches should
+  // do exact matches, or find the closest-without-going-over
+  enum AddressMatch
+  {
+    AddressMatch_Exact,
+    AddressMatch_Closest
+  };
+
   typedef nall::linear_vector<Symbols> SymbolsLists;
 
   void addLocation(uint32_t address, const string &name);
@@ -99,16 +107,16 @@ public:
 
   void revalidate();
 
-  Symbol getSymbol(uint32_t address);
-  Symbol getComment(uint32_t address);
-  Symbol getSourceLine(uint32_t address);
-  int32_t getSymbolIndex(uint32_t address);
-  bool getSourceLineLocation(uint32_t address, uint32_t& outFile, uint32_t &outLine);
+  Symbol getSymbol(uint32_t address, AddressMatch addressMatch);
+  Symbol getComment(uint32_t address, AddressMatch addressMatch);
+  Symbol getSourceLine(uint32_t address, AddressMatch addressMatch);
+  int32_t getSymbolIndex(uint32_t address, AddressMatch addressMatch);
+  bool getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine);
   const char* getSourceLineFromLocation(uint32_t file, uint32_t line);
   const char* getSourceIncludeFilePath(uint32_t file);
   const char* getSourceResolvedFilePath(uint32_t file);
   bool getFileIdFromPath(const char* resolvedFilePath, uint32_t& outFile);
-  bool getSourceAddress(uint32_t file, uint32_t line, uint32_t& outAddress, uint32_t& outLine);
+  bool getSourceAddress(uint32_t file, uint32_t line, AddressMatch addressMatch, uint32_t& outAddress, uint32_t& outLine);
 
   bool isValid;
   SymbolsLists symbols;

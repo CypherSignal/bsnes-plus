@@ -303,7 +303,7 @@ void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson
         line = breakpoint["line"];
         uint32_t discoveredLine = 0;
         uint32_t address = 0;
-        bool foundLine = symbolMap->getSourceAddress(file, line, address, discoveredLine);
+        bool foundLine = symbolMap->getSourceAddress(file, line, SymbolMap::AddressMatch_Closest, address, discoveredLine);
 
         char addrString[16];
         snprintf(addrString, 16, "%.8x", address);
@@ -369,7 +369,9 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
     uint32_t file = 0;
     uint32_t line = 0;
 
-    if (symbolMap && symbolMap->getSourceLineLocation(pcAddr, file, line))
+    string displayName;
+
+    if (symbolMap && symbolMap->getSourceLineLocation(pcAddr, SymbolMap::AddressMatch_Closest, file, line))
     {
       responseStackFrame["line"] = line;
 
@@ -383,22 +385,31 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
         responseStackFrame["source"]["path"] = resolvedFilename;
         responseStackFrame["source"]["origin"] = "file";
       }
+
+      Symbol foundSymbol = symbolMap->getSymbol(pcAddr, SymbolMap::AddressMatch_Closest);
+      if (!foundSymbol.isInvalid())
+      {
+        displayName = foundSymbol.name << " - ";
+      }
     }
     else
     {
       responseStackFrame["line"] = 0;
     }
 
-    char stackName[64];
+    char pcAddrStr[64];
     if (stackFrameAddr != 0)
     {
-      snprintf(stackName, 64, "0x%.6x (via 0x%.6x)", pcAddr, stackFrameAddr);
+      snprintf(pcAddrStr, 64, "0x%.6x (via 0x%.6x)", pcAddr, stackFrameAddr);
     }
     else
     {
-      snprintf(stackName, 64, "0x%.6x", pcAddr);
+      snprintf(pcAddrStr, 64, "0x%.6x", pcAddr);
     }
-    responseStackFrame["name"] = stackName;
+
+    displayName.append(pcAddrStr);
+
+    responseStackFrame["name"] = displayName;
     responseStackFrame["id"] = 0;
     responseStackFrame["column"] = 0;
 
