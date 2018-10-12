@@ -89,8 +89,8 @@ bool WlaSymbolFile::read(const lstring &rows, SymbolMap *map) const {
     if (row[0] == '[') {
       if (row == "[labels]") { section = SECTION_LABELS; }
       else if (row == "[comments]") { section = SECTION_COMMENTS; }
-      else if (row == "[addr-to-line-mapping]") { section = SECTION_SOURCEMAP; }
-      else if (row == "[source-files]") { section = SECTION_FILES; }
+      else if (row == "[addr-to-line mapping]") { section = SECTION_SOURCEMAP; }
+      else if (row == "[source files]") { section = SECTION_FILES; }
       
       else { section = SECTION_UNKNOWN; }
       continue;
