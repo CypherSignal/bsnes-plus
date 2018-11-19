@@ -285,7 +285,9 @@ bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatc
   }
 
   // we may not have gotten the exact address, but if "right" and "left" indices are surrounding it, then we want "right"'s result
-  if (addressMatch == AddressMatch_Closest && addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address)
+  if (right >= 0 && right < addressToSourceLineMappings.size() &&
+    addressMatch == AddressMatch_Closest && 
+    addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address)
   {
     outFile = addressToSourceLineMappings[right].file;
     outLine = addressToSourceLineMappings[right].line;
