@@ -68,7 +68,7 @@ private:
   };
   nall::linear_vector<AddressToSourceLine> addressToSourceLineMappings;
 
-  bool getSourceLineLocationInternal(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const;
+  bool getSourceLineLocationHelper(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const;
   bool tryLoadSourceFile(const char* includeFilepath, string& sourceFileData, string& resolvedFilePath);
 
   struct SourceFileInformation {

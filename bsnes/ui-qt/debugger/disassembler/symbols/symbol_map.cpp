@@ -199,7 +199,7 @@ bool SymbolMap::getSymbolData(const SymbolList& symbols, uint32_t address, Addre
 }
 
 // ------------------------------------------------------------------------
-bool SymbolMap::getSourceLineLocationInternal(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const
+bool SymbolMap::getSourceLineLocationHelper(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const
 {
   int32_t left = 0;
   int32_t right = addressToSourceLineMappings.size() - 1;
@@ -238,7 +238,7 @@ bool SymbolMap::getSourceLineLocationInternal(uint32_t address, AddressMatch add
 // ------------------------------------------------------------------------
 bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine)
 {
-  if (getSourceLineLocationInternal(address, addressMatch, outFile, outLine))
+  if (getSourceLineLocationHelper(address, addressMatch, outFile, outLine))
     return true;
 
   // if there wasn't a match, try the process again, but looking through multiple mirror/shadowed addresses
@@ -247,7 +247,7 @@ bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatc
   uint32_t mirrorAddr = SNES::bus.find_mirror_addr(address);
   while (mirrorAddr != ~0 && mirrorAddr != address)
   {
-    if (getSourceLineLocationInternal(mirrorAddr, addressMatch, outFile, outLine))
+    if (getSourceLineLocationHelper(mirrorAddr, addressMatch, outFile, outLine))
     {
       return true;
     }
