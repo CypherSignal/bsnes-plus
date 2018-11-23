@@ -53,7 +53,7 @@ bool ViceLabelFile::read(const lstring &rows, SymbolMap *map) const {
       continue;
     }
 
-    map->addLocation(
+    map->addLabel(
       hex(substr(row, 3, 6)),
       substr(row, 10, row.length() - 10)
     );

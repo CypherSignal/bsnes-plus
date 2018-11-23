@@ -98,7 +98,7 @@ bool WlaSymbolFile::read(const lstring &rows, SymbolMap *map) const {
 
     switch (section) {
     case SECTION_LABELS:
-      map->addLocation(
+      map->addLabel(
         (nall::hex(nall::substr(row, 0, 2)) << 16) | nall::hex(nall::substr(row, 3, 4)),
         nall::substr(row, 8, row.length() - 8)
       );

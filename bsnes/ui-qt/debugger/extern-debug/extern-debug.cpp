@@ -386,10 +386,10 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
         responseStackFrame["source"]["origin"] = "file";
       }
 
-      Symbol foundSymbol = symbolMap->getSymbol(pcAddr, SymbolMap::AddressMatch_Closest);
-      if (!foundSymbol.isInvalid())
+      string label;
+      if (symbolMap->getLabel(pcAddr, SymbolMap::AddressMatch_Closest, label))
       {
-        displayName = foundSymbol.name << " - ";
+        displayName = label << " - ";
       }
     }
     else

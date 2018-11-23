@@ -2,73 +2,21 @@
 #include "symbol_file_adapters.cpp"
 
 // ------------------------------------------------------------------------
-Symbol Symbols::getSymbol() {
-  for (uint32_t i=0; i<symbols.size(); i++) {
-    if (symbols[i].isSymbol()) {
-      return symbols[i];
-    }
-  }
-
-  return Symbol::createInvalid();
-}
-
-  // ------------------------------------------------------------------------
-Symbol Symbols::getComment() {
-  for (uint32_t i=0; i<symbols.size(); i++) {
-    if (symbols[i].isComment()) {
-      return symbols[i];
-    }
-  }
-
-  return Symbol::createInvalid();
-}
-
-// ------------------------------------------------------------------------
-Symbol Symbols::getSourceLine()
-{
-  for (uint32_t i = 0; i < symbols.size(); i++) {
-    if (symbols[i].isSourceLine()) {
-      return symbols[i];
-    }
-  }
-
-  return Symbol::createInvalid();
-}
-
-
-// ------------------------------------------------------------------------
 SymbolMap::SymbolMap() {
   isValid = false;
   adapters = new SymbolFileAdapters();
 }
 
 // ------------------------------------------------------------------------
-void SymbolMap::addLocation(uint32_t address, const string &name) {
-  addSymbol(address, Symbol::createLocation(address, name));
+void SymbolMap::addLabel(uint32_t address, const string &name) {
+  isValid = false;
+  labels.append({ address, name });
 }
 
 // ------------------------------------------------------------------------
 void SymbolMap::addComment(uint32_t address, const string &name) {
-  addSymbol(address, Symbol::createComment(address, name));
-}
-
-// ------------------------------------------------------------------------
-void SymbolMap::addSymbol(uint32_t address, const Symbol &name) {
   isValid = false;
-
-  int32_t right = symbols.size();
-  for (int32_t i=0; i<right; i++) {
-    if (symbols[i].address == address) {
-      symbols[i].symbols.append(Symbol(name));
-      return;
-    }
-  }
-
-
-  Symbols s;
-  s.address = address;
-  s.symbols.append(Symbol(name));
-  symbols.append(s);
+  comments.append({ address, name });
 }
 
 // ------------------------------------------------------------------------
@@ -132,15 +80,11 @@ bool SymbolMap::tryLoadSourceFile(const char* includeFilepath, string& sourceFil
 // ------------------------------------------------------------------------
 void SymbolMap::finishUpdates() {
   // populate sourceline data, now that we have sourceline and sourcefile information
-  // make sure symbols and addressToSourceLineMappings are sorted by addr
   if (addressToSourceLineMappings.size() > 0) {
-    revalidate();
+    isValid = false;
+    sourceLines.reset();
     nall::sort(&addressToSourceLineMappings[0], addressToSourceLineMappings.size());
 
-
-    uint32_t symbolIndex = 0;
-    uint32_t symbolIndexEnd = symbols.size();
-    string sourceLine;
     for (int i = 0; i < addressToSourceLineMappings.size(); ++i) {
       AddressToSourceLine addrToLine = addressToSourceLineMappings[i];
 
@@ -153,24 +97,7 @@ void SymbolMap::finishUpdates() {
         continue;
       }
 
-      // advance symbolindex forward until its address is >= the current addrToLine address
-      while (symbols[symbolIndex].address < addrToLine.address && symbolIndex < symbolIndexEnd) {
-        ++symbolIndex;
-      }
-
-      sourceLine = sourceLineRaw;
-      // create new symbol if we didn't match the address
-      if (symbols[symbolIndex].address > addrToLine.address) {
-        Symbols s;
-        s.address = addrToLine.address;
-        s.symbols.append(Symbol::createSourceLine(addrToLine.address, sourceLine));
-        symbols.append(s);
-        // we'll need to resort the list at some point, now
-        isValid = false;
-      }
-      else {
-        symbols[symbolIndex].symbols.append(Symbol::createSourceLine(addrToLine.address, sourceLine));
-      }
+      sourceLines.append({ addrToLine.address, sourceLineRaw });
     }
   }
   emit updated();
@@ -181,57 +108,34 @@ void SymbolMap::revalidate() {
   if (isValid) {
     return;
   }
-
-  // Don't know how to do this with pure nall stuff :(
-  int numSymbols = symbols.size();
-  Symbols *temp = new Symbols[numSymbols];
-  for (int i=0; i<numSymbols; i++) {
-    temp[i] = symbols[i];
-  }
-
-  nall::sort(temp, numSymbols);
-
-  symbols.reset();
-  symbols.reserve(numSymbols);
-  for (int i=0; i<numSymbols; i++) {
-    symbols.append(temp[i]);
-  }
-
+  
+  nall::sort(&labels[0], labels.size());
+  nall::sort(&comments[0], comments.size());
+  nall::sort(&sourceLines[0], sourceLines.size());
+  
   isValid = true;
 }
 
 // ------------------------------------------------------------------------
-Symbol SymbolMap::getSymbol(uint32_t address, AddressMatch addressMatch) {
-  int32_t index = getSymbolIndex(address, addressMatch);
-  if (index == -1) {
-    return Symbol::createInvalid();
-  }
-
-  return symbols[index].getSymbol();
+bool SymbolMap::getLabel(uint32_t address, AddressMatch addressMatch, string& outLabel) {
+  revalidate();
+  return getSymbolData(labels, address, addressMatch, outLabel);
 }
 
 // ------------------------------------------------------------------------
-Symbol SymbolMap::getComment(uint32_t address, AddressMatch addressMatch) {
-  int32_t index = getSymbolIndex(address, addressMatch);
-  if (index == -1) {
-    return Symbol::createInvalid();
-  }
-
-  return symbols[index].getComment();
+bool SymbolMap::getComment(uint32_t address, AddressMatch addressMatch, string& outComment) {
+  revalidate();
+  return getSymbolData(comments, address, addressMatch, outComment);
 }
 
 // ------------------------------------------------------------------------
-Symbol SymbolMap::getSourceLine(uint32_t address, AddressMatch addressMatch) {
-  int32_t index = getSymbolIndex(address, addressMatch);
-  if (index == -1) {
-    return Symbol::createInvalid();
-  }
-
-  return symbols[index].getSourceLine();
+bool SymbolMap::getSourceLine(uint32_t address, AddressMatch addressMatch, string& outSourceLine) {
+  revalidate();
+  return getSymbolData(sourceLines, address, addressMatch, outSourceLine);
 }
 
 // ------------------------------------------------------------------------
-int32_t SymbolMap::getSymbolIndexInternal(uint32_t address, AddressMatch addressMatch) const
+int32_t SymbolMap::getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const
 {
   int32_t left = 0;
   int32_t right = symbols.size() - 1;
@@ -263,15 +167,14 @@ int32_t SymbolMap::getSymbolIndexInternal(uint32_t address, AddressMatch address
 }
 
 // ------------------------------------------------------------------------
-
-int32_t SymbolMap::getSymbolIndex(uint32_t address, AddressMatch addressMatch)
+bool SymbolMap::getSymbolData(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch, string& outText) const
 {
-  revalidate();
-
-  int32_t symbolIndex = getSymbolIndexInternal(address, addressMatch);
-
+  int32_t symbolIndex = getSymbolIndexHelper(symbols, address, addressMatch);
   if (symbolIndex != -1)
-    return symbolIndex;
+  {
+    outText = symbols[symbolIndex].text;
+    return true;
+  }
 
   // dcrooks-todo there may have to be a more expansive search here. We're getting symbols like "NTLR7" because
   // they happen to be close by the _shadowed_ address, but are not correct because we have a more appropriate
@@ -283,14 +186,16 @@ int32_t SymbolMap::getSymbolIndex(uint32_t address, AddressMatch addressMatch)
   uint32_t mirrorAddr = SNES::bus.find_mirror_addr(address);
   while (mirrorAddr != ~0 && mirrorAddr != address)
   {
-    symbolIndex = getSymbolIndexInternal(mirrorAddr, addressMatch);
+    symbolIndex = getSymbolIndexHelper(symbols, mirrorAddr, addressMatch);
     if (symbolIndex != -1)
     {
-      return symbolIndex;
+      outText = symbols[symbolIndex].text;
+      return true;
     }
+
     mirrorAddr = SNES::bus.find_mirror_addr(mirrorAddr);
   }
-  return -1;
+  return false;
 }
 
 // ------------------------------------------------------------------------
@@ -331,11 +236,8 @@ bool SymbolMap::getSourceLineLocationInternal(uint32_t address, AddressMatch add
 }
 
 // ------------------------------------------------------------------------
-
 bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine)
 {
-  revalidate();
-
   if (getSourceLineLocationInternal(address, addressMatch, outFile, outLine))
     return true;
 
@@ -437,27 +339,6 @@ bool SymbolMap::getSourceAddress(uint32_t file, uint32_t line, AddressMatch addr
 }
 
 // ------------------------------------------------------------------------
-void SymbolMap::removeSymbol(uint32_t address, Symbol::Type type) {
-  int32_t index = getSymbolIndex(address, AddressMatch_Exact);
-  if (index == -1) {
-    return;
-  }
-
-  Symbols &s = symbols[index];
-  for (int32_t i=0; i<s.symbols.size(); i++) {
-    if (s.symbols[i].type == type) {
-      s.symbols.remove(i);
-      i--;
-    }
-  }
-
-  if (s.symbols.size() == 0) {
-    symbols.remove(index);
-    isValid = false;
-  }
-}
-
-// ------------------------------------------------------------------------
 void SymbolMap::loadFromFile(const string &baseName, const string &ext) {
   string fileName = baseName;
   fileName.append(ext);
@@ -501,7 +382,9 @@ void SymbolMap::loadFromString(const string &file) {
 // ------------------------------------------------------------------------
 void SymbolMap::unloadAll()
 {
-  symbols.reset();
+  labels.reset();
+  comments.reset();
+  sourceLines.reset();
   addressToSourceLineMappings.reset();
   sourceFiles.reset();
   sourceFileLines.reset();

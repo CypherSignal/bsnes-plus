@@ -85,7 +85,7 @@ void FmaSymbolFile::readComment(SymbolMap *map, const lstring &args) const {
   uint32_t address = parseAddress(args[0]);
   const string &name = args[1];
 
-  map->addSymbol(address, Symbol::createComment(address, name));
+  map->addComment(address, name);
 }
 
 // ------------------------------------------------------------------------
@@ -99,7 +99,7 @@ void FmaSymbolFile::readSymbol(SymbolMap *map, const lstring &args) const {
   const string &type = args[2];
   uint32_t size = hex(args[3]);
 
-  map->addSymbol(address, Symbol::createLocation(address, name));
+  map->addLabel(address, name);
 }
 
 // ------------------------------------------------------------------------
