@@ -135,10 +135,10 @@ bool SymbolMap::getSourceLine(uint32_t address, AddressMatch addressMatch, strin
 }
 
 // ------------------------------------------------------------------------
-int32_t SymbolMap::getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const
+int SymbolMap::getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const
 {
-  int32_t left = 0;
-  int32_t right = symbols.size() - 1;
+  int left = 0;
+  int right = symbols.size() - 1;
 
   while (right >= left) {
     uint32_t cur = ((right - left) >> 1) + left;
@@ -169,31 +169,47 @@ int32_t SymbolMap::getSymbolIndexHelper(const SymbolList& symbols, uint32_t addr
 // ------------------------------------------------------------------------
 bool SymbolMap::getSymbolData(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch, string& outText) const
 {
-  int32_t symbolIndex = getSymbolIndexHelper(symbols, address, addressMatch);
-  if (symbolIndex != -1)
-  {
-    outText = symbols[symbolIndex].text;
-    return true;
-  }
+  // first, populate the list of mirror addresses to search through
+  std::array<uint32_t, 256> mirrorAddresses;
+  uint32_t numMirrorAddresses = 0;
+  SNES::bus.get_mirror_addresses(address, mirrorAddresses, numMirrorAddresses);
 
-  // dcrooks-todo there may have to be a more expansive search here. We're getting symbols like "NTLR7" because
-  // they happen to be close by the _shadowed_ address, but are not correct because we have a more appropriate
-  // address elsewhere. Might have to find the best match across the entire space?
-
-  // if there wasn't a match, try the process again, but looking through multiple mirror/shadowed addresses
-  // find_mirror_addr will find the next available mirrored address (and loop around at bank FF)
-  // but we want to stop if we have looped all of the way around and come up with nothing
-  uint32_t mirrorAddr = SNES::bus.find_mirror_addr(address);
-  while (mirrorAddr != ~0 && mirrorAddr != address)
+  if (addressMatch == AddressMatch_Closest)
   {
-    symbolIndex = getSymbolIndexHelper(symbols, mirrorAddr, addressMatch);
-    if (symbolIndex != -1)
+    // search through all mirror addresses, and find which symbol was closest to our provided address
+    int closestSymbolIndex = -1;
+    uint32_t closestSymbolsDistance = UINT_MAX;
+    for (uint32_t i = 0; i < numMirrorAddresses; ++i)
     {
-      outText = symbols[symbolIndex].text;
+      int symbolIndex = getSymbolIndexHelper(symbols, mirrorAddresses[i], addressMatch);
+      if (symbolIndex != -1)
+      {
+        uint32_t addressDistance = (address & 0xFFFF) - (symbols[symbolIndex].address & 0xFFFF);
+        if (addressDistance < closestSymbolsDistance)
+        {
+          closestSymbolIndex = symbolIndex;
+          closestSymbolsDistance = addressDistance;
+        }
+      }
+    }
+    if (closestSymbolIndex != -1)
+    {
+      outText = symbols[closestSymbolIndex].text;
       return true;
     }
-
-    mirrorAddr = SNES::bus.find_mirror_addr(mirrorAddr);
+  }
+  else if (addressMatch == AddressMatch_Exact)
+  { 
+    // search through all mirror addresses, and find a symbol that exactly matches provided address
+    for (uint32_t i = 0; i < numMirrorAddresses; ++i)
+    {
+      int symbolIndex = getSymbolIndexHelper(symbols, mirrorAddresses[i], addressMatch);
+      if (symbolIndex != -1)
+      {
+        outText = symbols[symbolIndex].text;
+        return true;
+      }
+    }
   }
   return false;
 }
@@ -201,8 +217,8 @@ bool SymbolMap::getSymbolData(const SymbolList& symbols, uint32_t address, Addre
 // ------------------------------------------------------------------------
 bool SymbolMap::getSourceLineLocationHelper(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const
 {
-  int32_t left = 0;
-  int32_t right = addressToSourceLineMappings.size() - 1;
+  int left = 0;
+  int right = addressToSourceLineMappings.size() - 1;
 
   while (right >= left) {
     uint32_t cur = ((right - left) >> 1) + left;
@@ -238,20 +254,16 @@ bool SymbolMap::getSourceLineLocationHelper(uint32_t address, AddressMatch addre
 // ------------------------------------------------------------------------
 bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine)
 {
-  if (getSourceLineLocationHelper(address, addressMatch, outFile, outLine))
-    return true;
+  // populate the list of mirror addresses to search through
+  std::array<uint32_t, 256> mirrorAddresses;
+  uint32_t numMirrorAddresses = 0;
+  SNES::bus.get_mirror_addresses(address, mirrorAddresses, numMirrorAddresses);
 
-  // if there wasn't a match, try the process again, but looking through multiple mirror/shadowed addresses
-  // find_mirror_addr will find the next available mirrored address (and loop around at bank FF)
-  // but we want to stop if we have looped all of the way around and come up with nothing
-  uint32_t mirrorAddr = SNES::bus.find_mirror_addr(address);
-  while (mirrorAddr != ~0 && mirrorAddr != address)
+  // then check each of those for a relevant source line
+  for (uint32_t i = 0; i < numMirrorAddresses; ++i)
   {
-    if (getSourceLineLocationHelper(mirrorAddr, addressMatch, outFile, outLine))
-    {
+    if (getSourceLineLocationHelper(mirrorAddresses[i], addressMatch, outFile, outLine))
       return true;
-    }
-    mirrorAddr = SNES::bus.find_mirror_addr(mirrorAddr);
   }
   return false;
 }

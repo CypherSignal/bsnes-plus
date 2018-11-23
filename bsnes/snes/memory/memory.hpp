@@ -86,7 +86,11 @@ struct Bus {
   alwaysinline void write(uint24 addr, uint8 data);
 
   alwaysinline bool is_mirror(uint24 addr1, uint24 addr2);
-  uint32_t find_mirror_addr(uint32_t addr);
+
+  // searches across pages and fills the provided array with a list of all mirrors
+  // to the provided address (including the provided address itself)
+  // Entries in the outMirrorAddresses array beyond outNumMirrorAddresses will not be modified
+  void get_mirror_addresses(uint32_t addr, std::array<uint32_t, 256>& outMirrorAddresses, uint32_t& outNumMirrorAddresses) const;
 
   bool load_cart();
   void unload_cart();

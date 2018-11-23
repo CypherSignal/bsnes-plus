@@ -55,8 +55,8 @@ private:
   SymbolList comments;
   SymbolList sourceLines;
   bool getSymbolData(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch, string& outText) const;
-  int32_t getSymbolIndex(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
-  int32_t getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
+  int getSymbolIndex(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
+  int getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
 
   SymbolFileAdapters *adapters;
 

@@ -12,6 +12,10 @@ namespace SNES {
 
 #include <libco/libco.h>
 
+// std includes
+#include <array>
+
+// nall includes
 #include <nall/algorithm.hpp>
 #include <nall/any.hpp>
 #include <nall/array.hpp>
