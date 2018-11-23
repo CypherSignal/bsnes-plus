@@ -132,6 +132,37 @@ void Bus::map(
   }
 }
 
+
+// searches across possible pages for a potential mirror to the provided address
+// if a mirror is not found, then a value of ~0 is returned 
+uint32_t Bus::find_mirror_addr(uint32_t addr)
+{
+  if (addr > 0x00ffffff)
+    return ~0;
+
+  unsigned int srcPageIdx = addr >> 8;
+  Page srcPage = page[srcPageIdx];
+
+  unsigned int mirrorPageIdx = srcPageIdx;
+  // check 254 possible banks starting from just-after the srcPageIdx for a page that matches the srcPage
+  for (unsigned int bank = 0; bank < 0xFE; ++bank)
+  {
+    mirrorPageIdx += 0x100;
+    mirrorPageIdx &= 0xFFFF;
+
+    Page mirrorPage = page[mirrorPageIdx];
+    if (srcPage.access == mirrorPage.access)
+    {
+      uint32_t mirrorAddr = (mirrorPageIdx << 8) | (addr & 0xFF);
+      if (srcPage.offset + addr == mirrorPage.offset + mirrorAddr)
+      {
+        return mirrorAddr;
+      }
+    }
+  }
+  return ~0;
+}
+
 bool Bus::load_cart() {
   if(cartridge.loaded() == true) return false;
 

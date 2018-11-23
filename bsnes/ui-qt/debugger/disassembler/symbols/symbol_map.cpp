@@ -165,6 +165,8 @@ void SymbolMap::finishUpdates() {
         s.address = addrToLine.address;
         s.symbols.append(Symbol::createSourceLine(addrToLine.address, sourceLine));
         symbols.append(s);
+        // we'll need to resort the list at some point, now
+        isValid = false;
       }
       else {
         symbols[symbolIndex].symbols.append(Symbol::createSourceLine(addrToLine.address, sourceLine));
@@ -229,16 +231,14 @@ Symbol SymbolMap::getSourceLine(uint32_t address, AddressMatch addressMatch) {
 }
 
 // ------------------------------------------------------------------------
-int32_t SymbolMap::getSymbolIndex(uint32_t address, AddressMatch addressMatch) {
-  revalidate();
-
+int32_t SymbolMap::getSymbolIndexInternal(uint32_t address, AddressMatch addressMatch) const
+{
   int32_t left = 0;
   int32_t right = symbols.size() - 1;
 
   while (right >= left) {
     uint32_t cur = ((right - left) >> 1) + left;
     uint32_t curaddr = symbols[cur].address;
-
     if (address < curaddr) {
       right = cur - 1;
     }
@@ -251,19 +251,51 @@ int32_t SymbolMap::getSymbolIndex(uint32_t address, AddressMatch addressMatch) {
   }
 
   // we may not have gotten the exact address, but if "right" and "left" indices are surrounding it, then we want "right"'s result
-  if (addressMatch == AddressMatch_Closest && symbols[right].address < address && symbols[left].address > address)
+  // note, though, we want to restrict approximate matching to the same _bank_ (bits 17-24 of addr)
+  if (addressMatch == AddressMatch_Closest &&
+    right >= 0 && left < symbols.size() &&
+    symbols[right].address < address && symbols[left].address > address && 
+    (symbols[right].address & 0xFF0000) == (address & 0xFF0000))
   {
     return right;
   }
-
   return -1;
 }
 
 // ------------------------------------------------------------------------
-bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine)
+
+int32_t SymbolMap::getSymbolIndex(uint32_t address, AddressMatch addressMatch)
 {
   revalidate();
 
+  int32_t symbolIndex = getSymbolIndexInternal(address, addressMatch);
+
+  if (symbolIndex != -1)
+    return symbolIndex;
+
+  // dcrooks-todo there may have to be a more expansive search here. We're getting symbols like "NTLR7" because
+  // they happen to be close by the _shadowed_ address, but are not correct because we have a more appropriate
+  // address elsewhere. Might have to find the best match across the entire space?
+
+  // if there wasn't a match, try the process again, but looking through multiple mirror/shadowed addresses
+  // find_mirror_addr will find the next available mirrored address (and loop around at bank FF)
+  // but we want to stop if we have looped all of the way around and come up with nothing
+  uint32_t mirrorAddr = SNES::bus.find_mirror_addr(address);
+  while (mirrorAddr != ~0 && mirrorAddr != address)
+  {
+    symbolIndex = getSymbolIndexInternal(mirrorAddr, addressMatch);
+    if (symbolIndex != -1)
+    {
+      return symbolIndex;
+    }
+    mirrorAddr = SNES::bus.find_mirror_addr(mirrorAddr);
+  }
+  return -1;
+}
+
+// ------------------------------------------------------------------------
+bool SymbolMap::getSourceLineLocationInternal(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const
+{
   int32_t left = 0;
   int32_t right = addressToSourceLineMappings.size() - 1;
 
@@ -285,15 +317,40 @@ bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatc
   }
 
   // we may not have gotten the exact address, but if "right" and "left" indices are surrounding it, then we want "right"'s result
-  if (right >= 0 && right < addressToSourceLineMappings.size() &&
-    addressMatch == AddressMatch_Closest && 
-    addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address)
+  if (addressMatch == AddressMatch_Closest &&
+    right >= 0 && left < addressToSourceLineMappings.size() &&
+    addressToSourceLineMappings[right].address < address && addressToSourceLineMappings[left].address > address &&
+    (addressToSourceLineMappings[right].address & 0xFF0000) == (address & 0xFF0000))
   {
     outFile = addressToSourceLineMappings[right].file;
     outLine = addressToSourceLineMappings[right].line;
     return true;
   }
 
+  return false;
+}
+
+// ------------------------------------------------------------------------
+
+bool SymbolMap::getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine)
+{
+  revalidate();
+
+  if (getSourceLineLocationInternal(address, addressMatch, outFile, outLine))
+    return true;
+
+  // if there wasn't a match, try the process again, but looking through multiple mirror/shadowed addresses
+  // find_mirror_addr will find the next available mirrored address (and loop around at bank FF)
+  // but we want to stop if we have looped all of the way around and come up with nothing
+  uint32_t mirrorAddr = SNES::bus.find_mirror_addr(address);
+  while (mirrorAddr != ~0 && mirrorAddr != address)
+  {
+    if (getSourceLineLocationInternal(mirrorAddr, addressMatch, outFile, outLine))
+    {
+      return true;
+    }
+    mirrorAddr = SNES::bus.find_mirror_addr(mirrorAddr);
+  }
   return false;
 }
 
