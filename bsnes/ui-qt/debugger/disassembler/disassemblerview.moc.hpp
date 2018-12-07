@@ -71,7 +71,7 @@ private slots:
   void showContextMenu(const QPoint &);
   void toggleBreakpoint();
   void setComment();
-  void setSymbol();
+  void setLabel();
   void jumpToPc();
   void jumpToAddress();
 
