@@ -60,7 +60,7 @@ void SymbolsView::synchronize() {
 
   list->clear();
   list->setSortingEnabled(false);
-  // dcrooks-todo review this functionality
+  // dcrooks-todo review this functionality for getting symbols. UI as a whole may not make sense? Or may just be relevant for labels?
   //uint32_t count = symbols->symbols.size();
   //for (uint32_t i=0; i<count; i++) {
   //  const Symbol &sym = symbols->symbols[i].getSymbol();

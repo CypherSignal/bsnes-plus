@@ -16,6 +16,9 @@ public:
 
   void addLabel(uint32_t address, const string &name);
   void addComment(uint32_t address, const string &name);
+  void removeLabel(uint32_t address);
+  void removeComment(uint32_t address);
+
   void addSourceLine(uint32_t address, uint32_t file, uint32_t line);
   void addSourceFile(uint32_t fileId, uint32_t checksum, const string &includeFilePath);
   void finishUpdates();
@@ -55,6 +58,7 @@ private:
   bool getSymbolData(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch, string& outText) const;
   int getSymbolIndex(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
   int getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
+  void removeSymbolHelper(SymbolList& symbols, uint32_t address);
 
   struct AddressToSourceLine {
     uint32_t address;

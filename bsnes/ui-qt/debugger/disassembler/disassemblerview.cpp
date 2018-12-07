@@ -197,33 +197,30 @@ void DisassemblerView::resizeEvent(QResizeEvent *) {
 }
 
 // ------------------------------------------------------------------------
-void DisassemblerView::setSymbol() {
+void DisassemblerView::setLabel() {
   if (!processor->getSymbols()) {
     return;
   }
-  // dcrooks-todo review this functionality. I guess it's to add in new labels? is the term "symbol" mis-used in this way?
-  //uint32_t address = mouseStateValue;
-  //Symbol symbol = processor->getSymbols()->getSymbol(address);
-  //QString currentSymbol("");
+  
+  uint32_t address = mouseStateValue;
+  string currentLabel;
+  bool labelExists = processor->getSymbols()->getLabel(address, SymbolMap::AddressMatch_Exact, currentLabel);
+  QString inputDialogText(currentLabel());
 
-  //if (symbol.isSymbol()) {
-  //  currentSymbol = (const char*)symbol.name;
-  //}
+  bool ok;
+  QString value = QInputDialog::getText(this, "Label", "Enter label for address " + nall::hex(address), QLineEdit::Normal, inputDialogText, &ok);
+  string s;
+  s = qPrintable(value);
 
-  //bool ok;
-  //QString value = QInputDialog::getText(this, "Symbol", "Enter name for address " + nall::hex(address), QLineEdit::Normal, currentSymbol, &ok);
-  //string s;
-  //s = qPrintable(value);
+  if (ok) {
+    if (labelExists) {
+      processor->getSymbols()->removeLabel(address);
+    }
 
-  //if (ok) {
-  //  if (symbol.isSymbol()) {
-  //    processor->getSymbols()->removeSymbol(address, Symbol::LOCATION);
-  //  }
-
-  //  if (s.length()) {
-  //    processor->getSymbols()->addLocation(address, s);
-  //  }
-  //}
+    if (s.length()) {
+      processor->getSymbols()->addLabel(address, s);
+    }
+  }
 
   viewport()->update();
 }
@@ -234,29 +231,25 @@ void DisassemblerView::setComment() {
     return;
   }
 
-  // dcrooks-todo see setsymbol above
-  //uint32_t address = mouseStateValue;
-  //Symbol comment = processor->getSymbols()->getComment(address);
-  //QString currentComment("");
+  uint32_t address = mouseStateValue;
+  string currentComment;
+  bool commentExists = processor->getSymbols()->getComment(address, SymbolMap::AddressMatch_Exact, currentComment);
+  QString inputDialogText(currentComment());
 
-  //if (comment.isComment()) {
-  //  currentComment = (const char*)comment.name;
-  //}
+  bool ok;
+  QString value = QInputDialog::getText(this, "Comment", "Enter comment for address " + nall::hex(address), QLineEdit::Normal, inputDialogText, &ok);
+  string s;
+  s = qPrintable(value);
 
-  //bool ok;
-  //QString value = QInputDialog::getText(this, "Comment", "Enter comment for address " + nall::hex(address), QLineEdit::Normal, currentComment, &ok);
-  //string s;
-  //s = qPrintable(value);
+  if (ok) {
+    if (commentExists) {
+      processor->getSymbols()->removeComment(address);
+    }
 
-  //if (ok) {
-  //  if (comment.isComment()) {
-  //    processor->getSymbols()->removeSymbol(address, Symbol::COMMENT);
-  //  }
-
-  //  if (s.length()) {
-  //    processor->getSymbols()->addComment(address, s);
-  //  }
-  //}
+    if (s.length()) {
+      processor->getSymbols()->addComment(address, s);
+    }
+  }
 
   viewport()->update();
 }
@@ -346,8 +339,8 @@ void DisassemblerView::showLineContextMenu(const QPoint &point) {
   QAction setCommentAction("Set comment", this);
   connect(&setCommentAction, SIGNAL(triggered()), this, SLOT(setComment()));
 
-  QAction setSymbolAction("Set symbol", this);
-  connect(&setSymbolAction, SIGNAL(triggered()), this, SLOT(setSymbol()));
+  QAction setLabelAction("Set label", this);
+  connect(&setLabelAction, SIGNAL(triggered()), this, SLOT(setLabel()));
 
   QAction setBreakpoint("Toggle breakpoint", this);
   connect(&setBreakpoint, SIGNAL(triggered()), this, SLOT(toggleBreakpoint()));
@@ -361,7 +354,7 @@ void DisassemblerView::showLineContextMenu(const QPoint &point) {
 
   if (processor->getSymbols() != NULL) {
     contextMenu.addAction(&setCommentAction);
-    contextMenu.addAction(&setSymbolAction);
+    contextMenu.addAction(&setLabelAction);
   }
 
   contextMenu.addSeparator();
@@ -508,7 +501,7 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
     addressColor = Qt::white;
   }
 
-  // dcrooks-todo need to recuperate.
+  // dcrooks-todo need to recuperate functionality that fetches comment data for disasm
   //SymbolMap *symbols = processor->getSymbols();
   //Symbol currentRow = symbols ? symbols->getSymbol(line.line.address) : Symbol::createInvalid();
 
@@ -614,7 +607,7 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
               line.addressPosX = x;
               //if (symbols) 
               //{
-              //   dcrooks-todo recuperate
+              //   dcrooks-todo recuperate; fetches label data for disasm
               //  Symbol sym = symbols->getSymbol(param.address);
 
               //  if (sym.type != Symbol::INVALID)

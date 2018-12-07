@@ -18,6 +18,42 @@ void SymbolMap::addComment(uint32_t address, const string &name) {
 }
 
 // ------------------------------------------------------------------------
+void SymbolMap::removeLabel(uint32_t address)
+{
+  revalidate();
+  removeSymbolHelper(labels, address);
+  isValid = false;
+}
+
+// ------------------------------------------------------------------------
+void SymbolMap::removeComment(uint32_t address)
+{
+  revalidate();
+  removeSymbolHelper(comments, address);
+  isValid = false;
+}
+
+// ------------------------------------------------------------------------
+void SymbolMap::removeSymbolHelper(SymbolList& symbols, uint32_t address)
+{
+  // first, populate the list of mirror addresses to search through
+  std::array<uint32_t, 256> mirrorAddresses;
+  uint32_t numMirrorAddresses = 0;
+  SNES::bus.get_mirror_addresses(address, mirrorAddresses, numMirrorAddresses);
+
+  // search through all mirror addresses, and find a symbol that exactly matches provided address
+  for (uint32_t i = 0; i < numMirrorAddresses; ++i)
+  {
+    int symbolIndex = getSymbolIndexHelper(symbols, mirrorAddresses[i], AddressMatch::AddressMatch_Exact);
+    if (symbolIndex != -1)
+    {
+      symbols.remove(symbolIndex);
+      break;
+    }
+  }
+}
+
+// ------------------------------------------------------------------------
 void SymbolMap::addSourceLine(uint32_t address, uint32_t file, uint32_t line) {
   AddressToSourceLine newMapping;
   newMapping.address = address;
@@ -379,10 +415,83 @@ void SymbolMap::loadFromString(const string &file) {
   nall::lstring rows;
   rows.split("\n", file);
 
-  // dcrooks-todo fix this. need to load from string (think newdebugger has an impl for this)
-  //if (adapter->read(rows, this)) {
-  //  finishUpdates();
-  //}
+  enum Section {
+    SECTION_UNKNOWN,
+    SECTION_LABELS,
+    SECTION_COMMENTS,
+    SECTION_DEBUG,
+    SECTION_FILES,
+    SECTION_SOURCEMAP,
+  };
+
+  Section section = SECTION_LABELS;
+  for (int i = 0; i < rows.size(); i++) {
+
+    // filter the contents of the row in question (e.g. normalize EOL, trailing/leading whitesapce, and commented text)
+    string row(rows[i]);
+
+    row.trim("\r");
+    optional<unsigned> comment = row.position(";");
+    if (comment) {
+      unsigned index = comment();
+      if (index == 0) {
+        continue;
+      }
+      row = nall::substr(row, 0, index);
+    }
+    row.trim(" ");
+    if (row.length() == 0) {
+      continue;
+    }
+ 
+    // check if the row is a section header, and change what kind of processing is being done as needed
+    if (row[0] == '[') {
+      if (row == "[labels]") { section = SECTION_LABELS; }
+      else if (row == "[comments]") { section = SECTION_COMMENTS; }
+      else if (row == "[addr-to-line mapping]") { section = SECTION_SOURCEMAP; }
+      else if (row == "[source files]") { section = SECTION_FILES; }
+      else { section = SECTION_UNKNOWN; }
+      continue;
+    }
+
+    // process the data as appropriate for this section
+    switch (section) {
+    case SECTION_LABELS:
+      addLabel(
+        (nall::hex(nall::substr(row, 0, 2)) << 16) | nall::hex(nall::substr(row, 3, 4)),
+        nall::substr(row, 8, row.length() - 8)
+      );
+      break;
+
+    case SECTION_COMMENTS:
+      addComment(
+        (nall::hex(nall::substr(row, 0, 2)) << 16) | nall::hex(nall::substr(row, 3, 4)),
+        nall::substr(row, 8, row.length() - 8)
+      );
+      break;
+
+    case SECTION_SOURCEMAP:
+      addSourceLine(
+        (nall::hex(nall::substr(row, 0, 2)) << 16) | nall::hex(nall::substr(row, 3, 4)),
+        nall::hex(nall::substr(row, 8, 4)),
+        nall::hex(nall::substr(row, 13, 8))
+      );
+      break;
+
+    case SECTION_FILES:
+      addSourceFile(
+        nall::hex(nall::substr(row, 0, 4)),
+        nall::hex(nall::substr(row, 5, 8)),
+        nall::substr(row, 14, row.length() - 14)
+      );
+      break;
+
+    case SECTION_UNKNOWN:
+      break;
+    }
+  }
+
+
 }
 
 // ------------------------------------------------------------------------
