@@ -1,10 +1,8 @@
 #include "symbol_map.moc"
-#include "symbol_file_adapters.cpp"
 
 // ------------------------------------------------------------------------
 SymbolMap::SymbolMap() {
   isValid = false;
-  adapters = new SymbolFileAdapters();
 }
 
 // ------------------------------------------------------------------------
@@ -381,14 +379,10 @@ void SymbolMap::loadFromString(const string &file) {
   nall::lstring rows;
   rows.split("\n", file);
 
-  SymbolFileInterface *adapter = adapters->findBestAdapter(rows);
-  if (adapter == NULL) {
-    return;
-  }
-
-  if (adapter->read(rows, this)) {
-    finishUpdates();
-  }
+  // dcrooks-todo fix this. need to load from string (think newdebugger has an impl for this)
+  //if (adapter->read(rows, this)) {
+  //  finishUpdates();
+  //}
 }
 
 // ------------------------------------------------------------------------

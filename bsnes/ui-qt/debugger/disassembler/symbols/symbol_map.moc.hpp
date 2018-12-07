@@ -1,8 +1,6 @@
 #ifndef __SYMBOL_MAP__H__
 #define __SYMBOL_MAP__H__
 
-class SymbolFileAdapters;
-
 struct Symbol {
   uint32_t address;
   string text;
@@ -57,8 +55,6 @@ private:
   bool getSymbolData(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch, string& outText) const;
   int getSymbolIndex(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
   int getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
-
-  SymbolFileAdapters *adapters;
 
   struct AddressToSourceLine {
     uint32_t address;

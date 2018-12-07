@@ -65,6 +65,8 @@ using namespace ruby;
   #include "debugger/ppu/tilemap-viewer.moc.hpp"
   #include "debugger/ppu/oam-viewer.moc.hpp"
   #include "debugger/ppu/cgram-viewer.moc.hpp"
+  #include "debugger/extern-debug/extern-debug.moc.hpp"
+  
 #endif
 
 #include "input/input.hpp"
