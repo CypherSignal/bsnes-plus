@@ -11,3 +11,5 @@
 *.rar
 */out
 */bin
+\.vscode/
+\.vs/
