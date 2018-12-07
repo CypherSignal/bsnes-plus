@@ -9,13 +9,16 @@ ifeq ($(ui),)
   ui := ui-qt
 endif
 
+# external is currently only used for nlohmann/json - after Qt5 upgrade is done, this can be removed
+external := ../external
+
 # build version
 version := v04
 
 # compiler
 c       := $(compiler) -xc -std=gnu99
 cpp     := $(compiler) -std=gnu++0x
-flags   := -I. -I$(common) -I$(snes)
+flags   := -I. -I$(common) -I$(snes) -I$(external)
 link    :=
 objects :=
 

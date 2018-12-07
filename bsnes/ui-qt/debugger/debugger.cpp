@@ -33,6 +33,8 @@ Debugger *debugger;
 #include "ppu/oam-viewer.cpp"
 #include "ppu/cgram-viewer.cpp"
 
+#include "extern-debug/extern-debug.cpp"
+
 Debugger::Debugger() {
   setObjectName("debugger");
   setWindowTitle("Debugger");
@@ -98,6 +100,8 @@ Debugger::Debugger() {
   symbolsCPU->loadFromString(DEFAULT_SYMBOL_MAP_CPU);
   
   symbolsSA1 = new SymbolMap();
+
+  externDebugHandler = new ExternDebugHandler;
 
   debugCPU = new DebuggerView(registerEditCPU, new CpuDisasmProcessor(CpuDisasmProcessor::CPU, symbolsCPU), true);
   debugSMP = new DebuggerView(registerEditSMP, new CommonDisasmProcessor(CommonDisasmProcessor::SMP));
@@ -248,6 +252,7 @@ void Debugger::modifySystemState(unsigned state) {
     }
     
     tracer->resetTraceState();
+    externDebugHandler->loadCartridgeEvent(cartridge, cartridge.fileName());
   }
 
   if(state == Utility::UnloadCartridge) {

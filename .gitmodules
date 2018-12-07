@@ -1,3 +1,7 @@
 [submodule "external/qt"]
 	path = external/qt
 	url = https://github.com/CypherSignal/bsnes-plus-ext-qt.git
+	
+[submodule "external/json"]
+	path = external/json
+	url = https://github.com/nlohmann/json.git

@@ -60,8 +60,10 @@ public:
   uint24 opcode_pc;  //points to the current opcode, used to backtrace on read/write breakpoints
   
 #endif
+  StackFrames stackFrames;
 
   void op_step();
+  void op_irq();
   uint8_t op_readpc();
   uint8 op_read(uint32 addr);
   uint8 dma_read(uint32 abus);

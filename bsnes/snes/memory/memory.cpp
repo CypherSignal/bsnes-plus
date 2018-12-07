@@ -132,6 +132,49 @@ void Bus::map(
   }
 }
 
+// searches across pages and fills the provided array with a list of all mirrors
+// to the provided address (including the provided address itself)
+// Entries in the outMirrorAddresses array beyond outNumMirrorAddresses will not be modified
+void Bus::get_mirror_addresses(uint32_t addr, std::array<uint32_t, 256>& outMirrorAddresses, uint32_t& outNumMirrorAddresses) const
+{
+  if (addr > 0x00ffffff)
+  {
+    outNumMirrorAddresses = 0;
+    return;
+  }
+
+  unsigned int srcPageIdx = addr >> 8;
+  Page srcPage = page[srcPageIdx];
+  unsigned int mirrorPageIdx = srcPageIdx;
+  
+  uint32_t numMirrorAddresses = 0;
+  uint32_t mirrorAddresses[256];
+
+  mirrorAddresses[numMirrorAddresses] = addr;
+  ++numMirrorAddresses;
+
+  // check 254 possible banks starting from just-after the srcPageIdx for a page that matches the srcPage
+  for (unsigned int bank = 0; bank < 0xFE; ++bank)
+  {
+    mirrorPageIdx += 0x100;
+    mirrorPageIdx &= 0xFFFF;
+
+    Page mirrorPage = page[mirrorPageIdx];
+    if (srcPage.access == mirrorPage.access)
+    {
+      uint32_t mirrorAddr = (mirrorPageIdx << 8) | (addr & 0xFF);
+      if (srcPage.offset + addr == mirrorPage.offset + mirrorAddr)
+      {
+        mirrorAddresses[numMirrorAddresses] = mirrorAddr;
+        ++numMirrorAddresses;
+      }
+    }
+  }
+
+  memcpy(outMirrorAddresses.data(), mirrorAddresses, numMirrorAddresses * sizeof(uint32_t));
+  outNumMirrorAddresses = numMirrorAddresses;
+}
+
 bool Bus::load_cart() {
   if(cartridge.loaded() == true) return false;
 

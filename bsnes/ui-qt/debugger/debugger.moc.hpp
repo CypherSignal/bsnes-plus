@@ -1,3 +1,5 @@
+class ExternDebugHandler;
+
 class Debugger : public Window {
   Q_OBJECT
 

@@ -1,64 +1,13 @@
 #ifndef __SYMBOL_MAP__H__
 #define __SYMBOL_MAP__H__
 
+class SymbolFileAdapters;
+
 struct Symbol {
-  enum Type { INVALID, LOCATION, COMMENT };
-
-  static Symbol createInvalid() {
-    Symbol s;
-    s.type = INVALID;
-    return s;
-  }
-
-  static Symbol createComment(uint32_t address, const string &name) {
-    Symbol s;
-    s.type = COMMENT;
-    s.address = address;
-    s.name = name;
-    return s;
-  }
-
-  static Symbol createLocation(uint32_t address, const string &name) {
-    Symbol s;
-    s.type = LOCATION;
-    s.address = address;
-    s.name = name;
-    return s;
-  }
-
-  inline bool isInvalid() const {
-    return type == INVALID;
-  }
-
-  inline bool isSymbol() const {
-    return type == LOCATION;
-  }
-
-  inline bool isComment() const {
-    return type == COMMENT;
-  }
-
-  bool operator <(const Symbol &other) {
-    return address < other.address;
-  }
-
   uint32_t address;
-  string name;
-  Type type;
-};
+  string text;
 
-struct Symbols {
-  typedef nall::linear_vector<Symbol> SymbolList;
-
-  uint32_t address;
-  SymbolList symbols;
-
-  Symbol getSymbol();
-  Symbol getComment();
-
-  bool operator <(const Symbols &other) {
-    return address < other.address;
-  }
+  bool operator <(const Symbol &other) { return address < other.address; }
 };
 
 class SymbolMap : public QObject {
@@ -67,28 +16,73 @@ class SymbolMap : public QObject {
 public:
   SymbolMap();
 
-  typedef nall::linear_vector<Symbols> SymbolsLists;
-
-  void addLocation(uint32_t address, const string &name);
+  void addLabel(uint32_t address, const string &name);
   void addComment(uint32_t address, const string &name);
-  void addSymbol(uint32_t address, const Symbol &name);
-  void removeSymbol(uint32_t address, Symbol::Type type);
+  void addSourceLine(uint32_t address, uint32_t file, uint32_t line);
+  void addSourceFile(uint32_t fileId, uint32_t checksum, const string &includeFilePath);
+  void finishUpdates();
+
   void loadFromString(const string &file);
   void loadFromFile(const string &baseName, const string &ext);
-  void saveToFile(const string &baseName, const string &ext);
-  void finishUpdates();
+  void unloadAll();
 
   void revalidate();
 
-  int32_t getSymbolIndex(uint32_t address);
-  Symbol getSymbol(uint32_t address);
-  Symbol getComment(uint32_t address);
+  // for functions that support it, defines whether address searches should
+  // do exact matches, or find the closest-without-going-over
+  enum AddressMatch
+  {
+    AddressMatch_Exact,
+    AddressMatch_Closest
+  };
+
+  bool getLabel(uint32_t address, AddressMatch addressMatch, string& outLabel);
+  bool getComment(uint32_t address, AddressMatch addressMatch, string& outComment);
+  bool getSourceLine(uint32_t address, AddressMatch addressMatch, string& outSourceLine);
+  bool getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine);
+  const char* getSourceLineFromLocation(uint32_t file, uint32_t line);
+  const char* getSourceIncludeFilePath(uint32_t file);
+  const char* getSourceResolvedFilePath(uint32_t file);
+  bool getFileIdFromPath(const char* resolvedFilePath, uint32_t& outFile);
+  bool getSourceAddress(uint32_t file, uint32_t line, AddressMatch addressMatch, uint32_t& outAddress, uint32_t& outLine);
+
+private:
+
+  typedef nall::linear_vector<Symbol> SymbolList;
 
   bool isValid;
-  SymbolsLists symbols;
+  SymbolList labels;
+  SymbolList comments;
+  SymbolList sourceLines;
+  bool getSymbolData(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch, string& outText) const;
+  int getSymbolIndex(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
+  int getSymbolIndexHelper(const SymbolList& symbols, uint32_t address, AddressMatch addressMatch) const;
+
+  SymbolFileAdapters *adapters;
+
+  struct AddressToSourceLine {
+    uint32_t address;
+    uint32_t file;
+    uint32_t line;
+    bool operator <(const AddressToSourceLine &other) { return address < other.address; }
+  };
+  nall::linear_vector<AddressToSourceLine> addressToSourceLineMappings;
+
+  bool getSourceLineLocationHelper(uint32_t address, AddressMatch addressMatch, uint32_t &outFile, uint32_t &outLine) const;
+  bool tryLoadSourceFile(const char* includeFilepath, string& sourceFileData, string& resolvedFilePath);
+
+  struct SourceFileInformation {
+    string filename; // filename as it exists from the symbol file
+    unsigned long checksum;
+    string resolvedFilePath; // filename as it was loaded from disc
+  };
+  linear_vector<SourceFileInformation> sourceFiles;
+  linear_vector<lstring> sourceFileLines;
+  lstring sourceFilePaths;
 
 signals:
   void updated();
+
 };
 
 #endif
