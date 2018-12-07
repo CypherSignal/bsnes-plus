@@ -101,7 +101,7 @@ Debugger::Debugger() {
   
   symbolsSA1 = new SymbolMap();
 
-  externDebugHandler = new ExternDebugHandler;
+  externDebugHandler = new ExternDebugHandler(symbolsCPU);
 
   debugCPU = new DebuggerView(registerEditCPU, new CpuDisasmProcessor(CpuDisasmProcessor::CPU, symbolsCPU), true);
   debugSMP = new DebuggerView(registerEditSMP, new CommonDisasmProcessor(CommonDisasmProcessor::SMP));
@@ -263,10 +263,11 @@ void Debugger::modifySystemState(unsigned state) {
       if (SNES::cartridge.has_superfx()) fp.write(SNES::superfx.usage, 1 << 23);
       fp.close();
     }
-    
-    if(config().debugger.saveSymbols) {
-      debugger->symbolsCPU->saveToFile(nall::basename(symfile), ".sym");
-    }
+
+    // dcrooks-todo recuperate saves
+    //if(config().debugger.saveSymbols) {
+    //  debugger->symbolsCPU->saveToFile(nall::basename(symfile), ".sym");
+    //}
 
     if(config().debugger.saveBreakpoints) {
       string data = breakpointEditor->toStrings();

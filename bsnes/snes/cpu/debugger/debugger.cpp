@@ -60,7 +60,7 @@ void CPUDebugger::op_step() {
 
   CPU::op_step();
 
-  // todo: LttP does a lot of shenanigans with its stack frame. Should this be supported?
+  // dcrooks-todo: LttP does a lot of shenanigans with its stack frame. Should this be supported?
 
   // various instructions can pull off the stack - drop any that are no longer relevant
   // todo: fix this up to be smarter? faster?

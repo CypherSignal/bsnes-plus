@@ -201,29 +201,29 @@ void DisassemblerView::setSymbol() {
   if (!processor->getSymbols()) {
     return;
   }
+  // dcrooks-todo review this functionality. I guess it's to add in new labels? is the term "symbol" mis-used in this way?
+  //uint32_t address = mouseStateValue;
+  //Symbol symbol = processor->getSymbols()->getSymbol(address);
+  //QString currentSymbol("");
 
-  uint32_t address = mouseStateValue;
-  Symbol symbol = processor->getSymbols()->getSymbol(address);
-  QString currentSymbol("");
+  //if (symbol.isSymbol()) {
+  //  currentSymbol = (const char*)symbol.name;
+  //}
 
-  if (symbol.isSymbol()) {
-    currentSymbol = (const char*)symbol.name;
-  }
+  //bool ok;
+  //QString value = QInputDialog::getText(this, "Symbol", "Enter name for address " + nall::hex(address), QLineEdit::Normal, currentSymbol, &ok);
+  //string s;
+  //s = qPrintable(value);
 
-  bool ok;
-  QString value = QInputDialog::getText(this, "Symbol", "Enter name for address " + nall::hex(address), QLineEdit::Normal, currentSymbol, &ok);
-  string s;
-  s = qPrintable(value);
+  //if (ok) {
+  //  if (symbol.isSymbol()) {
+  //    processor->getSymbols()->removeSymbol(address, Symbol::LOCATION);
+  //  }
 
-  if (ok) {
-    if (symbol.isSymbol()) {
-      processor->getSymbols()->removeSymbol(address, Symbol::LOCATION);
-    }
-
-    if (s.length()) {
-      processor->getSymbols()->addLocation(address, s);
-    }
-  }
+  //  if (s.length()) {
+  //    processor->getSymbols()->addLocation(address, s);
+  //  }
+  //}
 
   viewport()->update();
 }
@@ -234,28 +234,29 @@ void DisassemblerView::setComment() {
     return;
   }
 
-  uint32_t address = mouseStateValue;
-  Symbol comment = processor->getSymbols()->getComment(address);
-  QString currentComment("");
+  // dcrooks-todo see setsymbol above
+  //uint32_t address = mouseStateValue;
+  //Symbol comment = processor->getSymbols()->getComment(address);
+  //QString currentComment("");
 
-  if (comment.isComment()) {
-    currentComment = (const char*)comment.name;
-  }
+  //if (comment.isComment()) {
+  //  currentComment = (const char*)comment.name;
+  //}
 
-  bool ok;
-  QString value = QInputDialog::getText(this, "Comment", "Enter comment for address " + nall::hex(address), QLineEdit::Normal, currentComment, &ok);
-  string s;
-  s = qPrintable(value);
+  //bool ok;
+  //QString value = QInputDialog::getText(this, "Comment", "Enter comment for address " + nall::hex(address), QLineEdit::Normal, currentComment, &ok);
+  //string s;
+  //s = qPrintable(value);
 
-  if (ok) {
-    if (comment.isComment()) {
-      processor->getSymbols()->removeSymbol(address, Symbol::COMMENT);
-    }
+  //if (ok) {
+  //  if (comment.isComment()) {
+  //    processor->getSymbols()->removeSymbol(address, Symbol::COMMENT);
+  //  }
 
-    if (s.length()) {
-      processor->getSymbols()->addComment(address, s);
-    }
-  }
+  //  if (s.length()) {
+  //    processor->getSymbols()->addComment(address, s);
+  //  }
+  //}
 
   viewport()->update();
 }
@@ -507,32 +508,33 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
     addressColor = Qt::white;
   }
 
-  SymbolMap *symbols = processor->getSymbols();
-  Symbol currentRow = symbols ? symbols->getSymbol(line.line.address) : Symbol::createInvalid();
+  // dcrooks-todo need to recuperate.
+  //SymbolMap *symbols = processor->getSymbols();
+  //Symbol currentRow = symbols ? symbols->getSymbol(line.line.address) : Symbol::createInvalid();
 
-  if (line.isReturn()) {
-    painter.setPen(Qt::gray);
-    painter.drawLine(0, y + lineOffset, width(), y + lineOffset);
-  }
+  //if (line.isReturn()) {
+  //  painter.setPen(Qt::gray);
+  //  painter.drawLine(0, y + lineOffset, width(), y + lineOffset);
+  //}
 
-  if (currentRow.type != Symbol::INVALID) {
-    painter.setPen(Qt::gray);
-    painter.drawLine(0, y - charHeight + lineOffset, width(), y - charHeight + lineOffset);
-    painter.setPen(paramAddressColor);
-    SET_CLIPPING(COLUMN_COMMENT);
-    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, currentRow.name);
-  } else {
-    currentRow = symbols ? symbols->getComment(line.line.address) : Symbol::createInvalid();
+  //if (currentRow.type != Symbol::INVALID) {
+  //  painter.setPen(Qt::gray);
+  //  painter.drawLine(0, y - charHeight + lineOffset, width(), y - charHeight + lineOffset);
+  //  painter.setPen(paramAddressColor);
+  //  SET_CLIPPING(COLUMN_COMMENT);
+  //  painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, currentRow.name);
+  //} else {
+  //  currentRow = symbols ? symbols->getComment(line.line.address) : Symbol::createInvalid();
 
-    painter.setPen(Qt::gray);
-    SET_CLIPPING(COLUMN_COMMENT);
+  //  painter.setPen(Qt::gray);
+  //  SET_CLIPPING(COLUMN_COMMENT);
 
-    if (currentRow.isComment()) {
-      painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, currentRow.name);
-    } else if (line.isReturn()) {
-      painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, "Return");
-    }
-  }
+  //  if (currentRow.isComment()) {
+  //    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, currentRow.name);
+  //  } else if (line.isReturn()) {
+  //    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, "Return");
+  //  }
+  //}
 
   int x = columnPositions[1] + charPadding + line.depth * 2 * charWidth;
 
@@ -610,19 +612,26 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
 
             case DisassemblerParam::Address:
               line.addressPosX = x;
-              if (symbols) {
-                Symbol sym = symbols->getSymbol(param.address);
+              //if (symbols) 
+              //{
+              //   dcrooks-todo recuperate
+              //  Symbol sym = symbols->getSymbol(param.address);
 
-                if (sym.type != Symbol::INVALID) {
-                  QString text = QString("<%1>").arg(sym.name);
-                  painter.setPen(paramSymbolColor);
-                  painter.drawText(x, y, text);
-                  x += text.length() * charWidth;
-                } else {
-                  painter.setPen(paramAddressColor);
-                  x += renderValue(painter, x, y, argType, argLength, param.value);
-                }
-              } else {
+              //  if (sym.type != Symbol::INVALID)
+              //  {
+              //    QString text = QString("<%1>").arg(sym.name);
+              //    painter.setPen(paramSymbolColor);
+              //    painter.drawText(x, y, text);
+              //    x += text.length() * charWidth;
+              //  } 
+              //  else 
+              //  {
+              //    painter.setPen(paramAddressColor);
+              //    x += renderValue(painter, x, y, argType, argLength, param.value);
+              //  }
+              //} 
+              //else 
+              {
                 painter.setPen(paramAddressColor);
                 x += renderValue(painter, x, y, argType, argLength, param.value);
               }

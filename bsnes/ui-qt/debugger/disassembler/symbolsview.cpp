@@ -60,39 +60,39 @@ void SymbolsView::synchronize() {
 
   list->clear();
   list->setSortingEnabled(false);
+  // dcrooks-todo review this functionality
+  //uint32_t count = symbols->symbols.size();
+  //for (uint32_t i=0; i<count; i++) {
+  //  const Symbol &sym = symbols->symbols[i].getSymbol();
+  //  if (sym.isInvalid()) {
+  //    continue;
+  //  }
 
-  uint32_t count = symbols->symbols.size();
-  for (uint32_t i=0; i<count; i++) {
-    const Symbol &sym = symbols->symbols[i].getSymbol();
-    if (sym.isInvalid()) {
-      continue;
-    }
+  //  if (filter.length()) {
+  //    QStringList list = filter.split(" ");
+  //    QString search = QString((const char*)sym.name);
+  //    bool found = true;
 
-    if (filter.length()) {
-      QStringList list = filter.split(" ");
-      QString search = QString((const char*)sym.name);
-      bool found = true;
+  //    for (QStringList::iterator it = list.begin(); it != list.end() && found; it++) {
+  //      if (!search.contains(*it, Qt::CaseInsensitive)) {
+  //        found = false;
+  //      }
+  //    }
 
-      for (QStringList::iterator it = list.begin(); it != list.end() && found; it++) {
-        if (!search.contains(*it, Qt::CaseInsensitive)) {
-          found = false;
-        }
-      }
+  //    if (!found) {
+  //      continue;
+  //    }
+  //  }
 
-      if (!found) {
-        continue;
-      }
-    }
+  //  int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(sym.address, processor->getBreakpointBusName());
 
-    int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(sym.address, processor->getBreakpointBusName());
-
-    auto item = new QTreeWidgetItem(list);
-    item->setData(0, Qt::UserRole, QVariant(sym.address));
-    item->setCheckState(0, breakpoint >= 0 ? Qt::Checked : Qt::Unchecked);
-    item->setText(0, hex<6, '0'>(sym.address));
-    item->setText(1, sym.name);
-    item->setText(2, "");
-  }
+  //  auto item = new QTreeWidgetItem(list);
+  //  item->setData(0, Qt::UserRole, QVariant(sym.address));
+  //  item->setCheckState(0, breakpoint >= 0 ? Qt::Checked : Qt::Unchecked);
+  //  item->setText(0, hex<6, '0'>(sym.address));
+  //  item->setText(1, sym.name);
+  //  item->setText(2, "");
+  //}
 
   list->resizeColumnToContents(0);
   list->resizeColumnToContents(1);

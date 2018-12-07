@@ -128,8 +128,9 @@ void writeJson(const nlohmann::json &jsonObj, FILE* file)
 
 //////////////////////////////////////////////////////////////////////////
 
-ExternDebugHandler::ExternDebugHandler()
+ExternDebugHandler::ExternDebugHandler(SymbolMap* symbolMap)
   :m_responseSeqId(0)
+  ,m_symbolMap(symbolMap)
 {
   m_requestListenerThread = new RequestListenerThread(this);
   m_requestListenerThread->requestQueueMutex = &m_requestQueueMutex;
@@ -285,25 +286,24 @@ void ExternDebugHandler::handleRestartRequest(const nlohmann::json& pendingReque
 void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
 {
   const nlohmann::json& sourceArg = pendingRequest["arguments"]["source"];
-
-  SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
+  
   uint32_t file = 0;
   uint32_t line = 0;
 
-  // todo: this wipes out all breakpoints across all files, right?
+  // dcrooks-todo: this wipes out all breakpoints across all files, right?
   breakpointEditor->clear();
 
   if (sourceArg["path"].is_string())
   {
     const auto& sourcePath = sourceArg["path"].get_ref<const nlohmann::json::string_t&>();
-    if (symbolMap->getFileIdFromPath(sourcePath.data(), file))
+    if (m_symbolMap && m_symbolMap->getFileIdFromPath(sourcePath.data(), file))
     {
       for (const auto& breakpoint : pendingRequest["arguments"]["breakpoints"])
       {
         line = breakpoint["line"];
         uint32_t discoveredLine = 0;
         uint32_t address = 0;
-        bool foundLine = symbolMap->getSourceAddress(file, line, SymbolMap::AddressMatch_Closest, address, discoveredLine);
+        bool foundLine = m_symbolMap->getSourceAddress(file, line, SymbolMap::AddressMatch_Closest, address, discoveredLine);
 
         char addrString[16];
         snprintf(addrString, 16, "%.8x", address);
@@ -360,7 +360,6 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
   
   // Then fill out the responseJson with the addresses fetched above
   responseJson["body"]["totalFrames"] = stackFrameCount;
-  SymbolMap* symbolMap = debugger->getSymbols(Disassembler::CPU);
   for (unsigned i = 0; i < programAddresses.size(); ++i)
   {
     nlohmann::json& responseStackFrame = responseJson["body"]["stackFrames"][i];
@@ -371,23 +370,23 @@ void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, c
 
     string displayName;
 
-    if (symbolMap && symbolMap->getSourceLineLocation(pcAddr, SymbolMap::AddressMatch_Closest, file, line))
+    if (m_symbolMap && m_symbolMap->getSourceLineLocation(pcAddr, SymbolMap::AddressMatch_Closest, file, line))
     {
       responseStackFrame["line"] = line;
 
-      if (const char* srcFilename = symbolMap->getSourceIncludeFilePath(file))
+      if (const char* srcFilename = m_symbolMap->getSourceIncludeFilePath(file))
       {
         responseStackFrame["source"]["name"] = srcFilename;
       }
 
-      if (const char* resolvedFilename = symbolMap->getSourceResolvedFilePath(file))
+      if (const char* resolvedFilename = m_symbolMap->getSourceResolvedFilePath(file))
       {
         responseStackFrame["source"]["path"] = resolvedFilename;
         responseStackFrame["source"]["origin"] = "file";
       }
 
       string label;
-      if (symbolMap->getLabel(pcAddr, SymbolMap::AddressMatch_Closest, label))
+      if (m_symbolMap->getLabel(pcAddr, SymbolMap::AddressMatch_Closest, label))
       {
         displayName = label << " - ";
       }

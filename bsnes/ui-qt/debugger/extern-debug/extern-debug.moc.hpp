@@ -33,7 +33,7 @@ class ExternDebugHandler : public QObject {
   Q_OBJECT
 
 public:
-  ExternDebugHandler();
+  ExternDebugHandler(SymbolMap* symbolMap);
   void processRequests();
 
   void stoppedEvent();
@@ -50,6 +50,8 @@ private:
 
   nlohmann::json createResponse(const nlohmann::json& request);
   nlohmann::json createEvent(const char* eventType);
+
+  SymbolMap *m_symbolMap;
 
   RequestListenerThread* m_requestListenerThread;
   QMutex m_requestQueueMutex;
