@@ -501,33 +501,27 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
     addressColor = Qt::white;
   }
 
-  // dcrooks-todo need to recuperate functionality that fetches comment data for disasm
-  //SymbolMap *symbols = processor->getSymbols();
-  //Symbol currentRow = symbols ? symbols->getSymbol(line.line.address) : Symbol::createInvalid();
+  if (line.isReturn()) {
+    painter.setPen(Qt::gray);
+    painter.drawLine(0, y + lineOffset, width(), y + lineOffset);
+  }
 
-  //if (line.isReturn()) {
-  //  painter.setPen(Qt::gray);
-  //  painter.drawLine(0, y + lineOffset, width(), y + lineOffset);
-  //}
+  SymbolMap *symbols = processor->getSymbols();
+  string lineText;
 
-  //if (currentRow.type != Symbol::INVALID) {
-  //  painter.setPen(Qt::gray);
-  //  painter.drawLine(0, y - charHeight + lineOffset, width(), y - charHeight + lineOffset);
-  //  painter.setPen(paramAddressColor);
-  //  SET_CLIPPING(COLUMN_COMMENT);
-  //  painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, currentRow.name);
-  //} else {
-  //  currentRow = symbols ? symbols->getComment(line.line.address) : Symbol::createInvalid();
-
-  //  painter.setPen(Qt::gray);
-  //  SET_CLIPPING(COLUMN_COMMENT);
-
-  //  if (currentRow.isComment()) {
-  //    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, currentRow.name);
-  //  } else if (line.isReturn()) {
-  //    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, "Return");
-  //  }
-  //}
+  if (symbols && symbols->getLabel(line.line.address, SymbolMap::AddressMatch_Exact, lineText)) {
+    painter.setPen(Qt::gray);
+    painter.drawLine(0, y - charHeight + lineOffset, width(), y - charHeight + lineOffset);
+    painter.setPen(paramAddressColor);
+    SET_CLIPPING(COLUMN_COMMENT);
+    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, lineText);
+  } else if (symbols && symbols->getComment(line.line.address, SymbolMap::AddressMatch_Exact, lineText)) {
+    painter.setPen(Qt::gray);
+    SET_CLIPPING(COLUMN_COMMENT);
+    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, lineText);
+  } else if (line.isReturn()) {
+    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, "Return");
+  }
 
   int x = columnPositions[1] + charPadding + line.depth * 2 * charWidth;
 
