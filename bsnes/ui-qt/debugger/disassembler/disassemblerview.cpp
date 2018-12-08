@@ -507,19 +507,21 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
   }
 
   SymbolMap *symbols = processor->getSymbols();
-  string lineText;
+  string symbolText;
 
-  if (symbols && symbols->getLabel(line.line.address, SymbolMap::AddressMatch_Exact, lineText)) {
+  if (symbols && symbols->getLabel(line.line.address, SymbolMap::AddressMatch_Exact, symbolText)) {
     painter.setPen(Qt::gray);
     painter.drawLine(0, y - charHeight + lineOffset, width(), y - charHeight + lineOffset);
     painter.setPen(paramAddressColor);
     SET_CLIPPING(COLUMN_COMMENT);
-    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, lineText);
-  } else if (symbols && symbols->getComment(line.line.address, SymbolMap::AddressMatch_Exact, lineText)) {
+    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, symbolText);
+  }
+  else if (symbols && symbols->getComment(line.line.address, SymbolMap::AddressMatch_Exact, symbolText)) {
     painter.setPen(Qt::gray);
     SET_CLIPPING(COLUMN_COMMENT);
-    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, lineText);
-  } else if (line.isReturn()) {
+    painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, symbolText);
+  }
+  else if (line.isReturn()) {
     painter.drawText(columnPositions[COLUMN_COMMENT] + charPadding, y, "Return");
   }
 
@@ -599,25 +601,14 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
 
             case DisassemblerParam::Address:
               line.addressPosX = x;
-              //if (symbols) 
-              //{
-              //   dcrooks-todo recuperate; fetches label data for disasm
-              //  Symbol sym = symbols->getSymbol(param.address);
-
-              //  if (sym.type != Symbol::INVALID)
-              //  {
-              //    QString text = QString("<%1>").arg(sym.name);
-              //    painter.setPen(paramSymbolColor);
-              //    painter.drawText(x, y, text);
-              //    x += text.length() * charWidth;
-              //  } 
-              //  else 
-              //  {
-              //    painter.setPen(paramAddressColor);
-              //    x += renderValue(painter, x, y, argType, argLength, param.value);
-              //  }
-              //} 
-              //else 
+              if (symbols && symbols->getLabel(param.address, SymbolMap::AddressMatch_Exact, symbolText))
+              {
+                QString text = QString("<%1>").arg(symbolText());
+                painter.setPen(paramSymbolColor);
+                painter.drawText(x, y, text);
+                x += text.length() * charWidth;
+              }
+              else
               {
                 painter.setPen(paramAddressColor);
                 x += renderValue(painter, x, y, argType, argLength, param.value);
