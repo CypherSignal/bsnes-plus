@@ -290,7 +290,7 @@ void DisassemblerView::mousePressEvent(QMouseEvent * event) {
     }
     break;
 
-  case STATE_JUMP_TO_ADDRESS:
+  case STATE_SHOW_ADDRESS:
     if (left) {
       refresh(mouseStateValue);
     }
@@ -316,14 +316,14 @@ void DisassemblerView::mousePressEvent(QMouseEvent * event) {
 }
 
 // ------------------------------------------------------------------------
-void DisassemblerView::jumpToPc() {
+void DisassemblerView::showPc() {
   refresh(processor->getCurrentAddress());
 }
 
 // ------------------------------------------------------------------------
-void DisassemblerView::jumpToAddress() {
+void DisassemblerView::showAddress() {
   bool ok;
-  QString value = QInputDialog::getText(this, "Jump to address", "Enter address to jump to", QLineEdit::Normal, hex(currentPcAddress), &ok);
+  QString value = QInputDialog::getText(this, "Show address", "Enter address to show...", QLineEdit::Normal, hex(currentPcAddress), &ok);
   string s;
   s = qPrintable(value);
 
@@ -336,21 +336,21 @@ void DisassemblerView::jumpToAddress() {
 void DisassemblerView::showLineContextMenu(const QPoint &point) {
   QMenu contextMenu("Context menu", this);
 
-  QAction setCommentAction("Set comment", this);
+  QAction setCommentAction("Set comment...", this);
   connect(&setCommentAction, SIGNAL(triggered()), this, SLOT(setComment()));
 
-  QAction setLabelAction("Set label", this);
+  QAction setLabelAction("Set label...", this);
   connect(&setLabelAction, SIGNAL(triggered()), this, SLOT(setLabel()));
 
   QAction setBreakpoint("Toggle breakpoint", this);
   connect(&setBreakpoint, SIGNAL(triggered()), this, SLOT(toggleBreakpoint()));
   contextMenu.addAction(&setBreakpoint);
 
-  QAction jumpToPcAction("Jump to PC", this);
-  connect(&jumpToPcAction, SIGNAL(triggered()), this, SLOT(jumpToPc()));
+  QAction showPcAction("Show PC", this);
+  connect(&showPcAction, SIGNAL(triggered()), this, SLOT(showPc()));
 
-  QAction jumpToAddressAction("Jump to address", this);
-  connect(&jumpToAddressAction, SIGNAL(triggered()), this, SLOT(jumpToAddress()));
+  QAction showAddressAction("Show address...", this);
+  connect(&showAddressAction, SIGNAL(triggered()), this, SLOT(showAddress()));
 
   if (processor->getSymbols() != NULL) {
     contextMenu.addAction(&setCommentAction);
@@ -359,8 +359,8 @@ void DisassemblerView::showLineContextMenu(const QPoint &point) {
 
   contextMenu.addSeparator();
 
-  contextMenu.addAction(&jumpToPcAction);
-  contextMenu.addAction(&jumpToAddressAction);
+  contextMenu.addAction(&showPcAction);
+  contextMenu.addAction(&showAddressAction);
 
   contextMenu.exec(mapToGlobal(point));
 }
@@ -370,7 +370,7 @@ void DisassemblerView::showContextMenu(const QPoint &point) {
   switch (mouseState) {
   case STATE_SET_COMMENT:
   case STATE_TOGGLE_BREAKPOINT:
-  case STATE_JUMP_TO_ADDRESS:
+  case STATE_SHOW_ADDRESS:
   case STATE_LINE:
     showLineContextMenu(point);
     break;
@@ -430,7 +430,7 @@ void DisassemblerView::updateCurrentMousePosition() {
         mouseState = STATE_SET_COMMENT;
         mouseStateValue = line.address;
       } else if (line.hasAddress() && line.isBra() && mouseX >= lines[row].addressPosX && mouseX < lines[row].addressPosX + lines[row].addressSizeX) {
-        mouseState = STATE_JUMP_TO_ADDRESS;
+        mouseState = STATE_SHOW_ADDRESS;
         mouseStateValue = line.targetAddress;
       } else {
         mouseState = STATE_LINE;
@@ -445,7 +445,7 @@ void DisassemblerView::updateCurrentMousePosition() {
       setCursor(Qt::SplitHCursor);
       break;
 
-    case STATE_JUMP_TO_ADDRESS:
+    case STATE_SHOW_ADDRESS:
     case STATE_TOGGLE_BREAKPOINT:
       setCursor(Qt::PointingHandCursor);
       break;

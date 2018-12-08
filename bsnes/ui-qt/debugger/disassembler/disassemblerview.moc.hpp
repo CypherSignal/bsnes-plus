@@ -32,7 +32,7 @@ class DisassemblerView : public QAbstractScrollArea {
     STATE_SET_COMMENT,
     STATE_RESIZE_COLUMN,
     STATE_RESIZING_COLUMN,
-    STATE_JUMP_TO_ADDRESS,
+    STATE_SHOW_ADDRESS,
     STATE_LINE
   };
 
@@ -72,8 +72,8 @@ private slots:
   void toggleBreakpoint();
   void setComment();
   void setLabel();
-  void jumpToPc();
-  void jumpToAddress();
+  void showPc();
+  void showAddress();
 
 private:
   void paintHeader(QPainter &painter);
