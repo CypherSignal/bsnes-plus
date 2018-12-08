@@ -316,6 +316,12 @@ void Debugger::synchronize() {
     registerEditSFX->setEnabled(false);
   }
   memoryEditor->synchronize();
+
+  if (active) {
+    externDebugHandler->stoppedEvent();
+  } else {
+    externDebugHandler->continuedEvent();
+  }
 }
 
 void Debugger::echo(const char *message) {
