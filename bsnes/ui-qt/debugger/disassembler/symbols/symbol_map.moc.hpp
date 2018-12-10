@@ -26,6 +26,7 @@ public:
 
   void loadFromString(const string &file);
   void loadFromFile(const string &baseName, const string &ext);
+  void saveToFile(const string &baseName, const string &ext);
   void unloadAll();
 
   void revalidate();

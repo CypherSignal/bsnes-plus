@@ -264,10 +264,9 @@ void Debugger::modifySystemState(unsigned state) {
       fp.close();
     }
 
-    // dcrooks-todo recuperate saves
-    //if(config().debugger.saveSymbols) {
-    //  debugger->symbolsCPU->saveToFile(nall::basename(symfile), ".sym");
-    //}
+    if(config().debugger.saveSymbols) {
+      debugger->symbolsCPU->saveToFile(nall::basename(symfile), ".sym");
+    }
 
     symbolsCPU->unloadAll();
     symbolsSA1->unloadAll();
