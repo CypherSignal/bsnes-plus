@@ -7,6 +7,7 @@ struct Symbol {
 
   bool operator <(const Symbol &other) { return address < other.address; }
 };
+typedef nall::linear_vector<Symbol> SymbolList;
 
 class SymbolMap : public QObject {
   Q_OBJECT
@@ -39,6 +40,9 @@ public:
 
   bool getLabel(uint32_t address, AddressMatch addressMatch, string& outLabel);
   bool getComment(uint32_t address, AddressMatch addressMatch, string& outComment);
+  const SymbolList& getLabels();
+  const SymbolList& getComments();
+
   bool getSourceLine(uint32_t address, AddressMatch addressMatch, string& outSourceLine);
   bool getSourceLineLocation(uint32_t address, AddressMatch addressMatch, uint32_t& outFile, uint32_t &outLine);
   const char* getSourceLineFromLocation(uint32_t file, uint32_t line);
@@ -49,7 +53,6 @@ public:
 
 private:
 
-  typedef nall::linear_vector<Symbol> SymbolList;
 
   bool isValid;
   SymbolList labels;

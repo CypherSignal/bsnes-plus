@@ -148,6 +148,8 @@ void SymbolMap::revalidate() {
   nall::sort(&sourceLines[0], sourceLines.size());
   
   isValid = true;
+
+  emit updated();
 }
 
 // ------------------------------------------------------------------------
@@ -162,6 +164,19 @@ bool SymbolMap::getComment(uint32_t address, AddressMatch addressMatch, string& 
   return getSymbolData(comments, address, addressMatch, outComment);
 }
 
+// ------------------------------------------------------------------------
+const SymbolList& SymbolMap::getLabels()
+{
+  // note that getting labels does not require a "validated" (i.e. sorted) data set, so do not do a revalidation
+  return labels;
+}
+
+// ------------------------------------------------------------------------
+const SymbolList& SymbolMap::getComments()
+{
+  // note that getting labels does not require a "validated" (i.e. sorted) data set, so do not do a revalidation
+  return comments;
+}
 // ------------------------------------------------------------------------
 bool SymbolMap::getSourceLine(uint32_t address, AddressMatch addressMatch, string& outSourceLine) {
   revalidate();
@@ -490,6 +505,7 @@ void SymbolMap::loadFromString(const string &file) {
       break;
     }
   }
+  finishUpdates();
 
 
 }
@@ -503,6 +519,7 @@ void SymbolMap::unloadAll()
   addressToSourceLineMappings.reset();
   sourceFiles.reset();
   sourceFileLines.reset();
+  isValid = false;
 }
 
 // ------------------------------------------------------------------------

@@ -269,6 +269,9 @@ void Debugger::modifySystemState(unsigned state) {
     //  debugger->symbolsCPU->saveToFile(nall::basename(symfile), ".sym");
     //}
 
+    symbolsCPU->unloadAll();
+    symbolsSA1->unloadAll();
+
     if(config().debugger.saveBreakpoints) {
       string data = breakpointEditor->toStrings();
       

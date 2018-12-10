@@ -18,9 +18,11 @@ SymbolsView::SymbolsView(DisasmProcessor *processor) : processor(processor) {
   topLayout->addWidget(search);
 
   list = new QTreeWidget;
-  list->setColumnCount(3);
-  list->setHeaderLabels(QStringList() << "Address" << "Name" << "Description");
-  list->setColumnWidth(1, list->fontMetrics().width("  123456789  "));
+  list->setColumnCount(2);
+  list->setHeaderLabels(QStringList() << "Address" << "Label/Comment");
+  list->setFont(QFont(Style::Monospace));
+  list->setColumnWidth(0, list->fontMetrics().width("  123456789  "));
+  list->setColumnWidth(1, list->fontMetrics().width("  123456789123456789  "));
   list->setAllColumnsShowFocus(true);
   list->sortByColumn(0, Qt::AscendingOrder);
   list->setRootIsDecorated(false);
@@ -55,49 +57,48 @@ void SymbolsView::bind(QTreeWidgetItem *item, int value) {
 
 // ------------------------------------------------------------------------
 void SymbolsView::synchronize() {
-  QString filter = search->text();
+
+  QStringList filterList;
+  {
+    QString filter = search->text();
+    if (filter.length()) {
+      filterList = filter.split(" ");
+    }
+  }
+
   SymbolMap *symbols = processor->getSymbols();
+  const SymbolList& labels = symbols->getLabels();
+
+  QList<QTreeWidgetItem*> itemList;
+  itemList.reserve(labels.size());
+
+  for (uint32_t i = 0; i < labels.size(); ++i) {
+    const Symbol& sym = labels[i];
+
+    QString itemText((const char*)sym.text);
+    bool filtered = false;
+    for (QStringList::iterator it = filterList.begin(); it != filterList.end() && !filtered; it++) {
+      if (!itemText.contains(*it, Qt::CaseInsensitive)) {
+        filtered = true;
+      }
+    }
+
+    if (filtered) {
+      continue;
+    }
+
+    int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(sym.address, processor->getBreakpointBusName());
+
+    itemList.push_back(new QTreeWidgetItem());
+    auto item = itemList.back();
+    item->setData(0, Qt::UserRole, QVariant(sym.address));
+    item->setCheckState(0, breakpoint >= 0 ? Qt::Checked : Qt::Unchecked);
+    item->setText(0, hex<6, '0'>(sym.address));
+    item->setText(1, itemText);
+  }
 
   list->clear();
-  list->setSortingEnabled(false);
-  // dcrooks-todo review this functionality for getting symbols. UI as a whole may not make sense? Or may just be relevant for labels?
-  //uint32_t count = symbols->symbols.size();
-  //for (uint32_t i=0; i<count; i++) {
-  //  const Symbol &sym = symbols->symbols[i].getSymbol();
-  //  if (sym.isInvalid()) {
-  //    continue;
-  //  }
-
-  //  if (filter.length()) {
-  //    QStringList list = filter.split(" ");
-  //    QString search = QString((const char*)sym.name);
-  //    bool found = true;
-
-  //    for (QStringList::iterator it = list.begin(); it != list.end() && found; it++) {
-  //      if (!search.contains(*it, Qt::CaseInsensitive)) {
-  //        found = false;
-  //      }
-  //    }
-
-  //    if (!found) {
-  //      continue;
-  //    }
-  //  }
-
-  //  int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(sym.address, processor->getBreakpointBusName());
-
-  //  auto item = new QTreeWidgetItem(list);
-  //  item->setData(0, Qt::UserRole, QVariant(sym.address));
-  //  item->setCheckState(0, breakpoint >= 0 ? Qt::Checked : Qt::Unchecked);
-  //  item->setText(0, hex<6, '0'>(sym.address));
-  //  item->setText(1, sym.name);
-  //  item->setText(2, "");
-  //}
-
-  list->resizeColumnToContents(0);
-  list->resizeColumnToContents(1);
-  list->setSortingEnabled(true);
-
+  list->addTopLevelItems(itemList);
 }
 
 // ------------------------------------------------------------------------
