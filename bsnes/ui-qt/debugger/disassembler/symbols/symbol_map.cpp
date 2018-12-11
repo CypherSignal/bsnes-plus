@@ -503,9 +503,17 @@ void SymbolMap::loadFromString(const string &file) {
       );
       break;
 
-    // dcrooks-todo checksum
     case SECTION_CHECKSUM:
-      
+      {
+        uint32_t checksum = (uint32_t)nall::hex(row);
+        if (cartridge.fileChecksum != 0 && checksum != cartridge.fileChecksum)
+        {
+          if (debugger)
+          {
+            debugger->echo(string() << "<b>WARNING: Symbols may be out of date!</b> Symbol file checksum (" << checksum << ") did not match expected cartridge checksum (" << cartridge.fileChecksum << ").<br>");
+          }
+        }
+      }
       break;
 
     case SECTION_UNKNOWN:
@@ -573,9 +581,8 @@ void SymbolMap::saveToFile(const string &baseName, const string &ext)
       sourceFile.filename, "\n");
   }
 
-  // dcrooks-todo checksum
-  //f.print("\n[rom checksum]\n");
-  //f.print();
+  f.print("\n[rom checksum]\n");
+  f.print(hex<8, '0'>(cartridge.fileChecksum), "\n");
 
   f.print("\n[addr-to-line mapping]\n");
   for (uint32_t i = 0; i < addressToSourceLineMappings.size(); i++) {

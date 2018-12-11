@@ -6,6 +6,7 @@ public:
   string slotAName;   //Sufami Turbo slot A file name or BS-X slot file name
   string slotBName;   //Sufami Turbo slot B file name
   string patchApplied;  //filename of the patch if one was applied to image
+  uint32_t fileChecksum = 0; // checksum of the cartridge file (post-patch, if applicable)
 
   string baseXml;
   string slotAXml;
