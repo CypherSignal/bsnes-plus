@@ -9,23 +9,8 @@
 // (see also Makefile)
 #include <json/single_include/nlohmann/json.hpp>
 
-//////////////////////////////////////////////////////////////////////////
-
-class RequestListenerThread : public QThread
-{
-  Q_OBJECT
-public:
-  using QThread::QThread;
-
-  void run();
-
-  QMutex* requestQueueMutex;
-  QQueue<nlohmann::json>* requestQueue;
-
-private:
-  FILE * m_stdinLog;
-  FILE * m_requestLog;
-};
+#include <QTcpServer>
+#include <QTcpSocket>
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -41,7 +26,8 @@ public:
   void loadCartridgeEvent(const Cartridge& cartridge, const char* cartridgeFile);
   void messageOutputEvent(const char* msg);
 public slots:
-
+  void openDebugProtocolConnection();
+  void handleSocketRead();
 private:
   void handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
   void handleLaunchRequest(const nlohmann::json &pendingRequest);
@@ -53,14 +39,15 @@ private:
 
   SymbolMap *m_symbolMap;
 
-  RequestListenerThread* m_requestListenerThread;
-  QMutex m_requestQueueMutex;
   QQueue<nlohmann::json> m_requestQueue;
 
   QQueue<nlohmann::json> m_eventQueue;
 
   int m_responseSeqId;
-  FILE* m_stdoutLog;
+
+  QTcpServer m_debugProtocolServer;
+  QTcpSocket *m_debugProtocolConnection;
+
 };
 
 extern ExternDebugHandler* externDebugHandler;

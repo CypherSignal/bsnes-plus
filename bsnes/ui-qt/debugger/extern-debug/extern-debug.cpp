@@ -9,13 +9,9 @@
 #include "extern-debug.moc"
 
 #include <json/single_include/nlohmann/json.hpp>
+#include <QTcpServer>
 #include <stdio.h>
 #include <sys/stat.h>
-
-#ifdef WIN32  
-#include <fcntl.h>  
-#include <io.h>  
-#endif
 
 ExternDebugHandler *externDebugHandler;
 
@@ -33,178 +29,103 @@ constexpr unsigned long operator "" _hash(const char* ch, size_t len)
 
 //////////////////////////////////////////////////////////////////////////
 
-// function that runs in its own thread to monitor stdin for requests, then push them onto the provided queue
-void RequestListenerThread::run()
-{
-  // todo: make the log optional
-  m_stdinLog = fopen("stdin_monitor.txt", "wb");
-
-  // check if stdin is set up for reading (e.g. we only launched a window without any attachment)
-  // TODO: how can vscode be set up for a delayed attach to bsnes? what comms happens over stdin in that case?
-  
-  FILE* requestInput = stdin;
-  {
-    fprintf(m_stdinLog, "Checking stdin fstat\n");
-    struct stat stdinStat;
-    if (fstat(fileno(requestInput), &stdinStat) != 0)
-    {
-      fclose(m_stdinLog);
-      return;
-    }
-  }
-  
-  m_requestLog = fopen("requestLog.txt", "wb");
-  fprintf(m_stdinLog, "Entering stdin loop\n");
-
-  const int MaxWarnings = 50;
-  int warnings = 0;
-
-  string contentString;
-  contentString.reserve(1024);
-
-  char contentLengthStr[64];
-  int contentLength = 0;
-  while (!feof(requestInput))
-  {
-    fprintf(m_stdinLog, "Reading input\n");
-    fflush(m_stdinLog);
-
-    // fetch a line from stdin and scan it for content header
-    fgets(contentLengthStr, 64, requestInput);
-    fputs(contentLengthStr, m_requestLog);
-
-    // todo: error handling for when the scan fails
-    if (sscanf(contentLengthStr, "Content-Length: %d\r\n", &contentLength) != 1)
-    {
-      fprintf(m_stdinLog, "WARNING: While searching for Content-Length string, received found string of length %d: %s", strlen(contentLengthStr), contentLengthStr);
-      if (++warnings < MaxWarnings)
-        continue;
-      else
-        break;
-    }
-
-    // capture the additional /r/n from the content header
-    fgets(contentLengthStr, 64, requestInput);
-    fputs(contentLengthStr, m_requestLog);
-    fprintf(m_stdinLog, "Reading content-length: %d\n", contentLength);
-
-    // read in and parse the actual json content
-    contentLength += 1; // add 1 to allow for null-terminator in fgets
-    contentString.reserve(contentLength);
-    fgets(contentString(), contentLength, requestInput);
-    fputs(contentString(), m_requestLog);
-    fputs("\r\n", m_requestLog);
-
-    fprintf(m_stdinLog, "%s\r\n", contentString());
-    
-    fflush(m_requestLog);
-
-
-    nlohmann::json jsonObj = nlohmann::json::parse(contentString(), contentString() + contentString.length(), nullptr, false);
-    // todo: more robust handling required - need to check if the json obj is _compatible_
-    if (!jsonObj.is_null())
-    {
-      QMutexLocker _(requestQueueMutex);
-      requestQueue->enqueue(jsonObj);
-    }
-  }
-  fclose(m_stdinLog);
-  fclose(m_requestLog);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
-void writeJson(const nlohmann::json &jsonObj, FILE* file)
+void writeJson(const nlohmann::json &jsonObj, FILE* file, QTcpSocket& socket)
 {
   const auto& jsonDump = jsonObj.dump();
-  if (file)
+  if (socket.state() == QAbstractSocket::ConnectedState)
   {
-    fprintf(file, "Content-Length: %d\r\n\r\n%s\n", jsonDump.length(), jsonDump.data());
-    fflush(file);
+    string socketOutput;
+    socketOutput = string() << "Content-Length: " << jsonDump.length() << "\r\n\r\n" << jsonDump.data() << "\n";
+    socket.write(socketOutput());
   }
-  fprintf(stdout, "Content-Length: %d\r\n\r\n%s", jsonDump.length(), jsonDump.data());
-  fflush(stdout);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 ExternDebugHandler::ExternDebugHandler(SymbolMap* symbolMap)
-  :m_responseSeqId(0)
-  ,m_symbolMap(symbolMap)
+  : m_responseSeqId(0)
+  , m_symbolMap(symbolMap)
+  , m_debugProtocolServer(this)
+  , m_debugProtocolConnection(nullptr)
 {
-  m_requestListenerThread = new RequestListenerThread(this);
-  m_requestListenerThread->requestQueueMutex = &m_requestQueueMutex;
-  m_requestListenerThread->requestQueue = &m_requestQueue;
-
-  m_requestListenerThread->start();
-
-  m_stdoutLog = fopen("responseEventLog.txt", "wb");
-
-#ifdef PLATFORM_WIN
-  // required so that we don't inject additional CR's into stdout
-  //todo: do we need this? we're compiling in mingw, which may have slightly diff behaviour for stdout by default...
-  _setmode(_fileno(stdout), _O_BINARY);
-#endif
+  {
+    int attemptCounter = 0;
+    while (!m_debugProtocolServer.listen(QHostAddress::Any, 5422 + attemptCounter) && attemptCounter < 100)
+    {
+      ++attemptCounter;
+    }
+  }
+  connect(&m_debugProtocolServer, &QTcpServer::newConnection,
+    this, &ExternDebugHandler::openDebugProtocolConnection);
 }
 
 //////////////////////////////////////////////////////////////////////////
-
+// dcrooks-todo handle "Close"/Terminate/disconnect request
 void ExternDebugHandler::processRequests()
 {
+  while (!m_requestQueue.empty())
   {
-    QMutexLocker _(&m_requestQueueMutex);
-    while (!m_requestQueue.empty())
+    nlohmann::json pendingRequest = m_requestQueue.dequeue();
+    nlohmann::json responseJson = createResponse(pendingRequest);
+
+    const auto& pendingReqStr = pendingRequest["command"].get_ref<const nlohmann::json::string_t&>();
+
+    // prepare any necessary update to the response
+    switch (hashCalc(pendingReqStr.data(), pendingReqStr.size()))
     {
-      nlohmann::json pendingRequest = m_requestQueue.dequeue();
-      nlohmann::json responseJson = createResponse(pendingRequest);
-
-      const auto& pendingReqStr = pendingRequest["command"].get_ref<const nlohmann::json::string_t&>();
-
-      // prepare any necessary update to the response
-      switch (hashCalc(pendingReqStr.data(), pendingReqStr.size()))
-      {
-      case "initialize"_hash:
-        responseJson["body"]["supportsConfigurationDoneRequest"] = true;
-        responseJson["body"]["supportsRestartRequest"] = true;
-        m_eventQueue.enqueue(createEvent("initialized"));
-        break;
-      case "pause"_hash:
-      case "continue"_hash:
-        debugger->toggleRunStatus();
-        break;
-      case "stepIn"_hash:
-        debugger->stepAction();
-        break;
-      case "next"_hash:
-        debugger->stepOverAction();
-        break;
-      case "stepOut"_hash:
-        debugger->stepOutAction();
-        break;
-      case "threads"_hash:
-        responseJson["body"]["threads"][0]["name"] = "CPU";
-        responseJson["body"]["threads"][0]["id"] = 0;
-        break;
-      case "stackTrace"_hash:
-        handleStackTraceRequest(responseJson, pendingRequest);
-        break;
-      case "launch"_hash:
-        handleLaunchRequest(pendingRequest);
-        break;
-      case "restart"_hash:
-        handleRestartRequest(pendingRequest);
+    case "retrorompreinit"_hash:
+      responseJson["body"]["label"] = "bsnes-plus";
+      responseJson["body"]["description"] = cartridge.fileName.length() ? (string() << "Running " << cartridge.fileName) : "No cartridge loaded";
+      responseJson["body"]["pid"] = QCoreApplication::applicationPid();
       break;
-      case "setBreakpoints"_hash:
-        handleSetBreakpointRequest(responseJson, pendingRequest);
-        break;
-      }
-      writeJson(responseJson, m_stdoutLog);
+    case "initialize"_hash:
+      responseJson["body"]["supportsConfigurationDoneRequest"] = true;
+      responseJson["body"]["supportsRestartRequest"] = true;
+      m_eventQueue.enqueue(createEvent("initialized"));
+      break;
+    case "pause"_hash:
+    case "continue"_hash:
+      debugger->toggleRunStatus();
+      break;
+    case "stepIn"_hash:
+      debugger->stepAction();
+      break;
+    case "next"_hash:
+      debugger->stepOverAction();
+      break;
+    case "stepOut"_hash:
+      debugger->stepOutAction();
+      break;
+    case "threads"_hash:
+      responseJson["body"]["threads"][0]["name"] = "CPU";
+      responseJson["body"]["threads"][0]["id"] = 0;
+      break;
+    case "stackTrace"_hash:
+      handleStackTraceRequest(responseJson, pendingRequest);
+      break;
+    case "launch"_hash:
+      handleLaunchRequest(pendingRequest);
+      break;
+    case "restart"_hash:
+      handleRestartRequest(pendingRequest);
+    break;
+    case "setBreakpoints"_hash:
+      handleSetBreakpointRequest(responseJson, pendingRequest);
+      break;
     }
+    writeJson(responseJson, m_stdoutLog, *m_debugProtocolConnection);
   }
 
   while (!m_eventQueue.empty())
   {
-    writeJson(m_eventQueue.dequeue(), m_stdoutLog);
+    if (m_debugProtocolConnection && m_debugProtocolConnection->state() == QAbstractSocket::ConnectedState)
+    {
+      writeJson(m_eventQueue.dequeue(), m_stdoutLog, *m_debugProtocolConnection);
+    }
+    else
+    {
+      m_eventQueue.dequeue();
+    }
   }
 }
 
@@ -446,4 +367,48 @@ void ExternDebugHandler::messageOutputEvent(const char* msg)
   nlohmann::json debugEvent = createEvent("output");
   debugEvent["body"]["output"] = msg;
   m_eventQueue.enqueue(debugEvent);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+// dcrooks-todo need to look for more improvements to this whole setup.
+// may not need a requestQueue or eventQueue, for example. Can we send json objs over Qt Signals?
+void ExternDebugHandler::openDebugProtocolConnection()
+{
+  m_debugProtocolConnection = m_debugProtocolServer.nextPendingConnection();
+  connect(m_debugProtocolConnection, &QAbstractSocket::disconnected,
+    m_debugProtocolConnection, &QObject::deleteLater);
+
+  connect(m_debugProtocolConnection, &QIODevice::readyRead,
+    this, &ExternDebugHandler::handleSocketRead);
+}
+
+void ExternDebugHandler::handleSocketRead()
+{
+  string contentString;
+  contentString.reserve(1024);
+
+  char contentLengthStr[64];
+  int contentLength = 0;
+  while (m_debugProtocolConnection->canReadLine())
+  {
+    m_debugProtocolConnection->readLine(contentLengthStr, 64);
+    if (sscanf(contentLengthStr, "Content-Length: %d\r\n", &contentLength) != 1)
+    {
+      QMessageBox::information(nullptr, "Error reading content", "Error");
+    }
+
+    m_debugProtocolConnection->readLine();
+
+    contentLength += 1;
+    contentString.reserve(contentLength);
+    m_debugProtocolConnection->readLine(contentString(), contentLength);
+
+    nlohmann::json jsonObj = nlohmann::json::parse(contentString(), contentString() + contentString.length(), nullptr, false);
+    // todo: more robust handling required - need to check if the json obj is _compatible_
+    if (!jsonObj.is_null())
+    {
+      m_requestQueue.enqueue(jsonObj);
+    }
+  }
 }
