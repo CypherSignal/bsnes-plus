@@ -29,7 +29,7 @@ constexpr unsigned long operator "" _hash(const char* ch, size_t len)
 
 //////////////////////////////////////////////////////////////////////////
 
-void writeJson(const nlohmann::json &jsonObj, FILE* file, QTcpSocket& socket)
+void writeJson(const nlohmann::json &jsonObj, QTcpSocket& socket)
 {
   const auto& jsonDump = jsonObj.dump();
   if (socket.state() == QAbstractSocket::ConnectedState)
@@ -74,7 +74,7 @@ void ExternDebugHandler::processRequests()
     switch (hashCalc(pendingReqStr.data(), pendingReqStr.size()))
     {
     case "retrorompreinit"_hash:
-      responseJson["body"]["label"] = "bsnes-plus";
+      responseJson["body"]["title"] = "bsnes-plus";
       responseJson["body"]["description"] = cartridge.fileName.length() ? (string() << "Running " << cartridge.fileName) : "No cartridge loaded";
       responseJson["body"]["pid"] = QCoreApplication::applicationPid();
       break;
@@ -113,14 +113,14 @@ void ExternDebugHandler::processRequests()
       handleSetBreakpointRequest(responseJson, pendingRequest);
       break;
     }
-    writeJson(responseJson, m_stdoutLog, *m_debugProtocolConnection);
+    writeJson(responseJson, *m_debugProtocolConnection);
   }
 
   while (!m_eventQueue.empty())
   {
     if (m_debugProtocolConnection && m_debugProtocolConnection->state() == QAbstractSocket::ConnectedState)
     {
-      writeJson(m_eventQueue.dequeue(), m_stdoutLog, *m_debugProtocolConnection);
+      writeJson(m_eventQueue.dequeue(), *m_debugProtocolConnection);
     }
     else
     {
