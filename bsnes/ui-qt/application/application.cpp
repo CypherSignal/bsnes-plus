@@ -158,8 +158,8 @@ int Application::main(int &argc, char **argv) {
 
   config().load(configFilename);
   mapper().bind();
-  init();
   SNES::system.init(&interface);
+  init();
   mainWindow->system_loadSpecial_superGameBoy->setVisible(SNES::supergameboy.opened());
 
   parseArguments();
@@ -200,9 +200,6 @@ void Application::run() {
   } else {
     autopause = false;
   }
-
-  if (externDebugHandler)
-    externDebugHandler->processRequests();
 
   if(SNES::cartridge.loaded() && !pause && !autopause && (!debug || debugrun)) {
     SNES::system.run();

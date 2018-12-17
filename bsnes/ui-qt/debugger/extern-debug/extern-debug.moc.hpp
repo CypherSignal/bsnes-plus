@@ -19,7 +19,6 @@ class ExternDebugHandler : public QObject {
 
 public:
   ExternDebugHandler(SymbolMap* symbolMap);
-  void processRequests();
 
   void stoppedEvent();
   void continuedEvent();
@@ -27,26 +26,26 @@ public:
   void messageOutputEvent(const char* msg);
 public slots:
   void openDebugProtocolConnection();
-  void handleSocketRead();
+  void handleDebugProtocolRead();
+
 private:
-  void handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
-  void handleLaunchRequest(const nlohmann::json &pendingRequest);
+  void handleRequest(const nlohmann::json& request, QTcpSocket* responseConnection);
+  
+  void handleTerminateRequest(const nlohmann::json& pendingRequest);
+  void handleLaunchRequest(const nlohmann::json& pendingRequest);
   void handleRestartRequest(const nlohmann::json& pendingRequest);
   void handleSetBreakpointRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
+  void handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
 
   nlohmann::json createResponse(const nlohmann::json& request);
   nlohmann::json createEvent(const char* eventType);
 
   SymbolMap *m_symbolMap;
 
-  QQueue<nlohmann::json> m_requestQueue;
-
-  QQueue<nlohmann::json> m_eventQueue;
-
   int m_responseSeqId;
 
   QTcpServer m_debugProtocolServer;
-  QTcpSocket *m_debugProtocolConnection;
+  QPointer<QTcpSocket> m_debugProtocolConnection;
 
 };
 
