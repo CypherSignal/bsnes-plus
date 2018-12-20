@@ -69,7 +69,7 @@ BreakpointItem::BreakpointItem(unsigned id_) : id(id_) {
 
 void BreakpointItem::init() {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     bp.enabled = false;
     bp.counter = 0;
   }
@@ -77,7 +77,7 @@ void BreakpointItem::init() {
 
 bool BreakpointItem::isEnabled() const {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     return bp.enabled;
   }
   return false;
@@ -85,7 +85,7 @@ bool BreakpointItem::isEnabled() const {
 
 uint32_t BreakpointItem::getAddressFrom() const {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     return bp.addr;
   }
   return 0;
@@ -93,7 +93,7 @@ uint32_t BreakpointItem::getAddressFrom() const {
 
 uint32_t BreakpointItem::getAddressTo() const {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     if (bp.addr_end == 0) {
       return bp.addr;
     }
@@ -106,7 +106,7 @@ uint32_t BreakpointItem::getAddressTo() const {
 
 bool BreakpointItem::isModeR() const {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Read;
   }
   return false;
@@ -114,7 +114,7 @@ bool BreakpointItem::isModeR() const {
 
 bool BreakpointItem::isModeW() const {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Write;
   }
   return false;
@@ -122,14 +122,14 @@ bool BreakpointItem::isModeW() const {
 
 bool BreakpointItem::isModeX() const {
   SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+  if (SNES::debugger.getBreakpoint(id, bp)) {
     return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Exec;
   }
   return false;
 }
 
 string BreakpointItem::getBus() const {
-  switch (SNES::Debugger::BreakpointSourceBus((SNES::Debugger::BreakpointSourceBus)source->currentIndex())) {
+  switch ((SNES::Debugger::BreakpointSourceBus)source->currentIndex()) {
     default:
     case SNES::Debugger::CPUBus: return "cpu";
     case SNES::Debugger::APURAM: return "smp";
@@ -166,7 +166,7 @@ void BreakpointItem::toggle() {
 
     bp.source = (SNES::Debugger::BreakpointSourceBus)source->currentIndex();
   }
-  SNES::debugger.setBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp);
+  SNES::debugger.setBreakpoint(id, bp);
 }
 
 void BreakpointItem::clear() {

@@ -3,14 +3,18 @@
 Debugger debugger;
 
 void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
-  for(unsigned i = 0; i < m_newBreakpoint[source].size(); ++i) {
-    const Breakpoint bp = m_newBreakpoint[source][i];
+  for(unsigned i = 0; i < m_breakpointList.size(); ++i) {
+    const Breakpoint bp = m_breakpointList[i];
     
     if (!bp.enabled) {
       continue;
     }
 
     if(bp.data != -1 && bp.data != data) {
+      continue;
+    }
+
+    if (bp.source != source) {
       continue;
     }
 
@@ -63,8 +67,8 @@ void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::B
       continue;
     }
     
-    m_newBreakpoint[source][i].counter++;
-    setBreakpointHit(i, source);
+    m_breakpointList[i].counter++;
+    m_breakpointHitId = bp.unique_id;
     break_event = BreakEvent::BreakpointHit;
     scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
     break;
@@ -170,7 +174,7 @@ void Debugger::write(Debugger::MemorySource source, unsigned addr, uint8 data) {
 Debugger::Debugger() {
   break_event = BreakEvent::None;
 
-  setBreakpointHit(0, BreakpointSourceBus::CPUBus);
+  m_breakpointHitId = 0;
 
   step_cpu = false;
   step_smp = false;
@@ -183,52 +187,55 @@ Debugger::Debugger() {
   step_type = StepType::None;
 }
 
-bool Debugger::getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Breakpoint& outBreakpoint)
+bool Debugger::getBreakpoint(int breakpointId, Breakpoint& outBreakpoint)
 {
-  if (breakpointId > 0 && sourceBus >= 0 && sourceBus < Num_SourceBus)
+  if (breakpointId > 0)
   {
-    nall::linear_vector<Breakpoint>& breakpointVec = m_newBreakpoint[sourceBus];
-    for (int i = 0; i < breakpointVec.size(); ++i)
+    for (int i = 0; i < m_breakpointList.size(); ++i)
     {
-      if (breakpointVec[i].unique_id == breakpointId)
+      if (m_breakpointList[i].unique_id == breakpointId)
       {
-        outBreakpoint = breakpointVec[i];
+        outBreakpoint = m_breakpointList[i];
         return true;
       }
     }
   }
+  else if (breakpointId == SoftBreakCPU || breakpointId == SoftBreakSA1)
+  {
+    Breakpoint softBp;
+    softBp.source = (breakpointId == SoftBreakCPU ? BreakpointSourceBus::CPUBus : BreakpointSourceBus::SA1Bus);
+    outBreakpoint = softBp;
+    return true;
+  }
   return false;
 }
 
-void Debugger::setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, const Breakpoint& newBreakpoint)
+void Debugger::setBreakpoint(int breakpointId, const Breakpoint& newBreakpoint)
 {
-  if (breakpointId > 0 && sourceBus >= 0 && sourceBus < Num_SourceBus)
+  if (breakpointId > 0)
   {
-    nall::linear_vector<Breakpoint>& breakpointVec = m_newBreakpoint[sourceBus];
-    for (int i = 0; i < breakpointVec.size(); ++i)
+    for (int i = 0; i < m_breakpointList.size(); ++i)
     {
-      if (breakpointVec[i].unique_id == breakpointId)
+      if (m_breakpointList[i].unique_id == breakpointId)
       {
-        breakpointVec[i] = newBreakpoint;
+        m_breakpointList[i] = newBreakpoint;
         return;
       }
     }
 
     // if we reached here, we didn't already have a breakpoint matching one in storage
-    breakpointVec.append(newBreakpoint);
+    m_breakpointList.append(newBreakpoint);
   }
 }
 
-void Debugger::setBreakpointHit(int breakpointId, BreakpointSourceBus source)
+void Debugger::setBreakpointHit(int breakpointId)
 {
   m_breakpointHitId = breakpointId;
-  m_breakpointHitSource = source;
 }
 
-void Debugger::getBreakpointHit(int &breakpointId, BreakpointSourceBus &source)
+int Debugger::getBreakpointHit()
 {
-  breakpointId = m_breakpointHitId;
-  source = m_breakpointHitSource;
+  return m_breakpointHitId;
 }
 
 

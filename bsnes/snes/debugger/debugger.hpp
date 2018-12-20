@@ -60,18 +60,17 @@ public:
 
   Debugger();
 
-  bool getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Breakpoint& outBreakpoint);
-  void setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, const Breakpoint& newBreakpoint);
+  bool getBreakpoint(int breakpointId, Breakpoint& outBreakpoint);
+  void setBreakpoint(int breakpointId, const Breakpoint& newBreakpoint);
 
-  void getBreakpointHit(int &breakpointId, BreakpointSourceBus &source);
-  void setBreakpointHit(int breakpointId, BreakpointSourceBus source);
+  int getBreakpointHit();
+  void setBreakpointHit(int breakpointId);
 
 private:
   // dcrooks-todo can we do something to guarantee that breakpointVec is always sorted by the breakpoint's unique_id,
   // and therefore any lookups to it can be done through binary search?
-  nall::linear_vector<Breakpoint> m_newBreakpoint[Num_SourceBus];
+  nall::linear_vector<Breakpoint> m_breakpointList;
   int m_breakpointHitId;
-  BreakpointSourceBus m_breakpointHitSource;
 
 };
 
