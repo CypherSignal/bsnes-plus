@@ -49,7 +49,7 @@ BreakpointItem::BreakpointItem(unsigned id_) : id(id_) {
   connect(source, SIGNAL(currentIndexChanged(int)), this, SLOT(init()));
   connect(source, SIGNAL(currentIndexChanged(int)), this, SLOT(toggle()));
   
-  if (id_ == 0) {
+  if (id_ == 100) {
     layout->addWidget(new QLabel("Address Range"), 0, BreakAddrStart, 1, BreakAddrEnd - BreakAddrStart + 1);
     layout->addWidget(new QLabel("Data"), 0, BreakData);
     QLabel *label = new QLabel("R");
@@ -147,6 +147,7 @@ void BreakpointItem::toggle() {
   SNES::Debugger::Breakpoint bp;
   bool state = mode_r->isChecked() | mode_w->isChecked() | mode_x->isChecked();
   bp.enabled = state;
+  bp.unique_id = id;
   if (state) {
     bp.addr = hex(addr->text().toUtf8().data()) & 0xffffff;
     bp.addr_end = hex(addr_end->text().toUtf8().data()) & 0xffffff;
@@ -160,8 +161,8 @@ void BreakpointItem::toggle() {
 
     bp.mode = 0;
     bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Read : 0;
-    bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Write : 0;
-    bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
+    bp.mode |= mode_w->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Write : 0;
+    bp.mode |= mode_x->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
 
     bp.source = (SNES::Debugger::BreakpointSourceBus)source->currentIndex();
   }

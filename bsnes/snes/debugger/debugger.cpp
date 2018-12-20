@@ -190,7 +190,7 @@ bool Debugger::getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Br
     nall::linear_vector<Breakpoint>& breakpointVec = m_newBreakpoint[sourceBus];
     for (int i = 0; i < breakpointVec.size(); ++i)
     {
-      if (breakpointVec[i].unique_id = breakpointId)
+      if (breakpointVec[i].unique_id == breakpointId)
       {
         outBreakpoint = breakpointVec[i];
         return true;
@@ -207,7 +207,7 @@ void Debugger::setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, co
     nall::linear_vector<Breakpoint>& breakpointVec = m_newBreakpoint[sourceBus];
     for (int i = 0; i < breakpointVec.size(); ++i)
     {
-      if (breakpointVec[i].unique_id = breakpointId)
+      if (breakpointVec[i].unique_id == breakpointId)
       {
         breakpointVec[i] = newBreakpoint;
         return;
