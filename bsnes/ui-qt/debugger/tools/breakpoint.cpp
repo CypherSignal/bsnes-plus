@@ -68,71 +68,104 @@ BreakpointItem::BreakpointItem(unsigned id_) : id(id_) {
 }
 
 void BreakpointItem::init() {
-  SNES::debugger.breakpoint[id].enabled = false;
-  SNES::debugger.breakpoint[id].counter = 0;
-}
-
-bool BreakpointItem::isEnabled() const {
-  return SNES::debugger.breakpoint[id].enabled;
-}
-
-uint32_t BreakpointItem::getAddressFrom() const {
-  return SNES::debugger.breakpoint[id].addr;
-}
-
-uint32_t BreakpointItem::getAddressTo() const {
-  if (SNES::debugger.breakpoint[id].addr_end == 0) {
-    return SNES::debugger.breakpoint[id].addr;
-  } else {
-    return SNES::debugger.breakpoint[id].addr_end;
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    bp.enabled = false;
+    bp.counter = 0;
   }
 }
 
+bool BreakpointItem::isEnabled() const {
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    return bp.enabled;
+  }
+  return false;
+}
+
+uint32_t BreakpointItem::getAddressFrom() const {
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    return bp.addr;
+  }
+  return 0;
+}
+
+uint32_t BreakpointItem::getAddressTo() const {
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    if (bp.addr_end == 0) {
+      return bp.addr;
+    }
+    else {
+      return bp.addr_end;
+    }
+  }
+  return 0;
+}
+
 bool BreakpointItem::isModeR() const {
-  return SNES::debugger.breakpoint[id].mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Read;
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Read;
+  }
+  return false;
 }
 
 bool BreakpointItem::isModeW() const {
-  return SNES::debugger.breakpoint[id].mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Write;
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Write;
+  }
+  return false;
 }
 
 bool BreakpointItem::isModeX() const {
-  return SNES::debugger.breakpoint[id].mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Exec;
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp)) {
+    return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Exec;
+  }
+  return false;
 }
 
 string BreakpointItem::getBus() const {
-  switch (source->currentIndex()) {
-  default:
-  case 0: return "cpu";
-  case 1: return "smp";
-  case 2: return "vram";
-  case 3: return "oam";
-  case 4: return "cgram";
-  case 5: return "sa1";
-  case 6: return "sfx";
+  switch (SNES::Debugger::BreakpointSourceBus((SNES::Debugger::BreakpointSourceBus)source->currentIndex())) {
+    default:
+    case SNES::Debugger::CPUBus: return "cpu";
+    case SNES::Debugger::APURAM: return "smp";
+    case SNES::Debugger::VRAM: return "vram";
+    case SNES::Debugger::OAM: return "oam";
+    case SNES::Debugger::CGRAM: return "cgram";
+    case SNES::Debugger::SA1Bus: return "sa1";
+    case SNES::Debugger::SFXBus: return "sfx";
   }
 
   return "";
 }
 
 void BreakpointItem::toggle() {
+  SNES::Debugger::Breakpoint bp;
   bool state = mode_r->isChecked() | mode_w->isChecked() | mode_x->isChecked();
-  SNES::debugger.breakpoint[id].enabled = state;
-    
-  if(state) {
-    SNES::debugger.breakpoint[id].addr = hex(addr->text().toUtf8().data()) & 0xffffff;
-    SNES::debugger.breakpoint[id].addr_end = hex(addr_end->text().toUtf8().data()) & 0xffffff;
-    if(addr_end->text().length() == 0) SNES::debugger.breakpoint[id].addr_end = 0;
-    SNES::debugger.breakpoint[id].data = hex(data->text().toUtf8().data()) & 0xff;
-    if(data->text().length() == 0) SNES::debugger.breakpoint[id].data = -1;
-    
-    SNES::debugger.breakpoint[id].mode = 0;
-    if(mode_r->isChecked()) SNES::debugger.breakpoint[id].mode |= (unsigned)SNES::Debugger::Breakpoint::Mode::Read;
-    if(mode_w->isChecked()) SNES::debugger.breakpoint[id].mode |= (unsigned)SNES::Debugger::Breakpoint::Mode::Write;
-    if(mode_x->isChecked()) SNES::debugger.breakpoint[id].mode |= (unsigned)SNES::Debugger::Breakpoint::Mode::Exec;
-    
-    SNES::debugger.breakpoint[id].source = (SNES::Debugger::Breakpoint::Source)source->currentIndex();
+  bp.enabled = state;
+  if (state) {
+    bp.addr = hex(addr->text().toUtf8().data()) & 0xffffff;
+    bp.addr_end = hex(addr_end->text().toUtf8().data()) & 0xffffff;
+    if (addr_end->text().length() == 0) {
+      bp.addr_end = 0;
+    }
+    bp.data = hex(data->text().toUtf8().data()) & 0xff;
+    if (data->text().length() == 0) {
+      bp.data = -1;
+    }
+
+    bp.mode = 0;
+    bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Read : 0;
+    bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Write : 0;
+    bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
+
+    bp.source = (SNES::Debugger::BreakpointSourceBus)source->currentIndex();
   }
+  SNES::debugger.setBreakpoint(id, (SNES::Debugger::BreakpointSourceBus)source->currentIndex(), bp);
 }
 
 void BreakpointItem::clear() {

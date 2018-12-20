@@ -2,7 +2,7 @@
 
 Debugger debugger;
 
-void Debugger::breakpoint_test(Debugger::Breakpoint::Source source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
+void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
   for(unsigned i = 0; i < Breakpoints; i++) {
     if(breakpoint[i].enabled == false) continue;
 
@@ -23,11 +23,11 @@ void Debugger::breakpoint_test(Debugger::Breakpoint::Source source, Debugger::Br
     }
     
     for (; addr_start <= addr_end; addr_start += 1<<16) {
-      if (source == Debugger::Breakpoint::Source::CPUBus) {
+      if (source == Debugger::BreakpointSourceBus::CPUBus) {
         if (bus.is_mirror(addr_start, addr)) break;
-      } else if (source == Debugger::Breakpoint::Source::SA1Bus) {
+      } else if (source == Debugger::BreakpointSourceBus::SA1Bus) {
         if (sa1bus.is_mirror(addr_start, addr)) break;
-      } else if (source == Debugger::Breakpoint::Source::SFXBus) {
+      } else if (source == Debugger::BreakpointSourceBus::SFXBus) {
         if (superfxbus.is_mirror(addr_start, addr)) break;
       } else {
         if (addr_start == addr) break;
@@ -147,7 +147,7 @@ Debugger::Debugger() {
     breakpoint[n].addr = 0;
     breakpoint[n].data = -1;
     breakpoint[n].mode = (unsigned)Breakpoint::Mode::Exec;
-    breakpoint[n].source = Breakpoint::Source::CPUBus;
+    breakpoint[n].source = BreakpointSourceBus::CPUBus;
     breakpoint[n].counter = 0;
   }
   breakpoint_hit = 0;
@@ -161,6 +161,42 @@ Debugger::Debugger() {
   break_on_brk = false;
 
   step_type = StepType::None;
+}
+
+bool Debugger::getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Breakpoint& outBreakpoint)
+{
+  if (breakpointId >= 0 && breakpointId < Breakpoints)
+  {
+    outBreakpoint = breakpoint[breakpointId];
+    return true;
+  }
+  return false;
+}
+
+void Debugger::setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, const Breakpoint& newBreakpoint)
+{
+  if (breakpointId >= 0 && breakpointId < Breakpoints)
+  {
+    breakpoint[breakpointId] = newBreakpoint;
+  }
+}
+
+Debugger::BreakpointSourceBus Debugger::getBreakpointSourceBus(int breakpointId) const
+{
+  if (breakpointId >= 0 && breakpointId < Breakpoints)
+  {
+    return breakpoint[breakpointId].source;
+  }
+
+  if (breakpointId == SoftBreakCPU)
+  {
+    return BreakpointSourceBus::CPUBus;
+  }
+
+  if (breakpointId == SoftBreakSA1)
+  {
+    return BreakpointSourceBus::SA1Bus;
+  }
 }
 
 #endif

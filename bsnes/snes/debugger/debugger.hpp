@@ -9,9 +9,21 @@ public:
     SFXStep,
   } break_event;
 
+  enum BreakpointSourceBus
+  {
+    CPUBus = 0,
+    APURAM = 1,
+    VRAM = 2,
+    OAM = 3,
+    CGRAM = 4,
+    SA1Bus = 5,
+    SFXBus = 6,
+    Num_SourceBus = 7,
+  };
+
   enum { Breakpoints = 8,
-         SoftBreakCPU = Breakpoints,
-         SoftBreakSA1, };
+         SoftBreakCPU = -1,
+         SoftBreakSA1 = -2, };
   struct Breakpoint {
     bool enabled;
     unsigned addr;
@@ -21,11 +33,12 @@ public:
     enum class Mode : unsigned { Exec = 1, Read = 2, Write = 4 };
     unsigned mode;
     
-    enum class Source : unsigned { CPUBus, APURAM, VRAM, OAM, CGRAM, SA1Bus, SFXBus } source;
+    BreakpointSourceBus source;
     unsigned counter;  //number of times breakpoint has been hit since being set
-  } breakpoint[Breakpoints];
-  unsigned breakpoint_hit;
-  void breakpoint_test(Breakpoint::Source source, Breakpoint::Mode mode, unsigned addr, uint8 data);
+  };
+
+  int breakpoint_hit;
+  void breakpoint_test(BreakpointSourceBus source, Breakpoint::Mode mode, unsigned addr, uint8 data);
 
   bool step_cpu;
   bool step_smp;
@@ -46,6 +59,14 @@ public:
   void write(MemorySource, unsigned addr, uint8 data);
 
   Debugger();
+
+  bool getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Breakpoint& outBreakpoint);
+  void setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, const Breakpoint& newBreakpoint);
+
+  BreakpointSourceBus getBreakpointSourceBus(int breakpointId) const;
+
+private:
+  Breakpoint breakpoint[Breakpoints];
 };
 
 extern Debugger debugger;

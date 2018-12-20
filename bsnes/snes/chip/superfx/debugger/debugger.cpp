@@ -19,7 +19,7 @@ void SFXDebugger::op_step() {
       debugger.step_type = Debugger::StepType::None;
       scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
     } else {
-      debugger.breakpoint_test(Debugger::Breakpoint::Source::SFXBus, Debugger::Breakpoint::Mode::Exec, opcode_pc, 0x00);
+      debugger.breakpoint_test(Debugger::BreakpointSourceBus::SFXBus, Debugger::Breakpoint::Mode::Exec, opcode_pc, 0x00);
     }
     if(step_event) step_event();
   }
@@ -47,7 +47,7 @@ uint8 SFXDebugger::rombuffer_read() {
   int offset = cartridge.rom_offset(fulladdr);
   if (offset >= 0) (*cart_usage)[offset] |= UsageRead;
   
-  debugger.breakpoint_test(Debugger::Breakpoint::Source::SFXBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
+  debugger.breakpoint_test(Debugger::BreakpointSourceBus::SFXBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
   return SuperFX::rombuffer_read();
 }
 
@@ -59,7 +59,7 @@ uint8 SFXDebugger::rambuffer_read(uint16 addr) {
   uint8 data = superfxbus.read(fulladdr);
   SNES::debugger.bus_access = false;
   
-  debugger.breakpoint_test(Debugger::Breakpoint::Source::SFXBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
+  debugger.breakpoint_test(Debugger::BreakpointSourceBus::SFXBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
   return SuperFX::rambuffer_read(addr);
 }
 
@@ -67,7 +67,7 @@ void SFXDebugger::rambuffer_write(uint16 addr, uint8 data) {
   uint32 fulladdr = 0x700000 + (regs.rambr << 16) + addr;
   usage[fulladdr] |= UsageWrite;
   
-  debugger.breakpoint_test(Debugger::Breakpoint::Source::SFXBus, Debugger::Breakpoint::Mode::Write, fulladdr, data);
+  debugger.breakpoint_test(Debugger::BreakpointSourceBus::SFXBus, Debugger::Breakpoint::Mode::Write, fulladdr, data);
   SuperFX::rambuffer_write(addr, data);
 }
 
