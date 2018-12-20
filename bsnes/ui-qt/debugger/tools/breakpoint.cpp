@@ -251,7 +251,7 @@ BreakpointEditor::BreakpointEditor() {
   setLayout(layout);
 
   for(unsigned n = 0; n < SNES::Debugger::Breakpoints; n++) {
-    breakpoint[n] = new BreakpointItem(n);
+    breakpoint[n] = new BreakpointItem(n + 100);
     layout->addWidget(breakpoint[n]);
   }
 

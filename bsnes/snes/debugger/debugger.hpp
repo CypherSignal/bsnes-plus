@@ -25,19 +25,19 @@ public:
          SoftBreakCPU = -1,
          SoftBreakSA1 = -2, };
   struct Breakpoint {
-    bool enabled;
-    unsigned addr;
-    unsigned addr_end; //0 = unused
-    signed data;  //-1 = unused
+    int unique_id = 0;
+    bool enabled = false;
+    unsigned addr = 0;
+    unsigned addr_end = 0; //0 = unused
+    signed data = -1;  //-1 = unused
     
     enum class Mode : unsigned { Exec = 1, Read = 2, Write = 4 };
-    unsigned mode;
+    unsigned mode = (unsigned)Mode::Exec;
     
-    BreakpointSourceBus source;
-    unsigned counter;  //number of times breakpoint has been hit since being set
+    BreakpointSourceBus source = BreakpointSourceBus::CPUBus;
+    unsigned counter = 0;  //number of times breakpoint has been hit since being set
   };
 
-  int breakpoint_hit;
   void breakpoint_test(BreakpointSourceBus source, Breakpoint::Mode mode, unsigned addr, uint8 data);
 
   bool step_cpu;
@@ -63,10 +63,16 @@ public:
   bool getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Breakpoint& outBreakpoint);
   void setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, const Breakpoint& newBreakpoint);
 
-  BreakpointSourceBus getBreakpointSourceBus(int breakpointId) const;
+  void getBreakpointHit(int &breakpointId, BreakpointSourceBus &source);
+  void setBreakpointHit(int breakpointId, BreakpointSourceBus source);
 
 private:
-  Breakpoint breakpoint[Breakpoints];
+  // dcrooks-todo can we do something to guarantee that breakpointVec is always sorted by the breakpoint's unique_id,
+  // and therefore any lookups to it can be done through binary search?
+  nall::linear_vector<Breakpoint> m_newBreakpoint[Num_SourceBus];
+  int m_breakpointHitId;
+  BreakpointSourceBus m_breakpointHitSource;
+
 };
 
 extern Debugger debugger;

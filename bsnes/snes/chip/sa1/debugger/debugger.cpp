@@ -27,7 +27,7 @@ void SA1Debugger::op_step() {
     if (debugger.break_on_wdm || debugger.break_on_brk) {
       uint8 opcode = disassembler_read(opcode_pc);
       if ((opcode == 0x42 && debugger.break_on_wdm) || (opcode == 0x00 && debugger.break_on_brk)) {
-        debugger.breakpoint_hit = Debugger::SoftBreakSA1;
+        debugger.setBreakpointHit(Debugger::SoftBreakSA1, Debugger::SA1Bus);
         debugger.break_event = Debugger::BreakEvent::BreakpointHit;
         scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
       }

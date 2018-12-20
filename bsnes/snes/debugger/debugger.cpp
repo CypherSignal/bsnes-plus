@@ -3,40 +3,68 @@
 Debugger debugger;
 
 void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
-  for(unsigned i = 0; i < Breakpoints; i++) {
-    if(breakpoint[i].enabled == false) continue;
-
-    if(breakpoint[i].data != -1 && breakpoint[i].data != data) continue;
-    if(breakpoint[i].source != source) continue;
+  for(unsigned i = 0; i < m_newBreakpoint[source].size(); ++i) {
+    const Breakpoint bp = m_newBreakpoint[source][i];
     
-    if((breakpoint[i].mode & (unsigned)mode) == 0) continue;
+    if (!bp.enabled) {
+      continue;
+    }
+
+    if(bp.data != -1 && bp.data != data) {
+      continue;
+    }
+
+    if((bp.mode & (unsigned)mode) == 0) {
+      continue;
+    }
     
     // account for address mirroring on the S-CPU and SA-1 (and other) buses
     // (with 64kb granularity for ranged breakpoints)
-    unsigned addr_start = (breakpoint[i].addr & 0xff0000) | (addr & 0xffff);
-    if (addr_start < breakpoint[i].addr) {
+    unsigned addr_start = (bp.addr & 0xff0000) | (addr & 0xffff);
+    if (addr_start < bp.addr) {
       addr_start += 1<<16;
     }
-    unsigned addr_end = breakpoint[i].addr;
-    if (breakpoint[i].addr_end > breakpoint[i].addr) {
-      addr_end = breakpoint[i].addr_end;
+
+    unsigned addr_end = bp.addr;
+    if (bp.addr_end > bp.addr) {
+      addr_end = bp.addr_end;
     }
-    
-    for (; addr_start <= addr_end; addr_start += 1<<16) {
-      if (source == Debugger::BreakpointSourceBus::CPUBus) {
-        if (bus.is_mirror(addr_start, addr)) break;
-      } else if (source == Debugger::BreakpointSourceBus::SA1Bus) {
-        if (sa1bus.is_mirror(addr_start, addr)) break;
-      } else if (source == Debugger::BreakpointSourceBus::SFXBus) {
-        if (superfxbus.is_mirror(addr_start, addr)) break;
-      } else {
-        if (addr_start == addr) break;
+
+    if (source == Debugger::BreakpointSourceBus::CPUBus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (bus.is_mirror(addr_start, addr)) {
+          break;
+        }
       }
     }
-    if (addr_start > addr_end) continue;
+    else if (source == Debugger::BreakpointSourceBus::SA1Bus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (sa1bus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else if (source == Debugger::BreakpointSourceBus::SFXBus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (superfxbus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (addr_start == addr) {
+          break;
+        }
+      }
+    }
+
+    if (addr_start > addr_end) {
+      continue;
+    }
     
-    breakpoint[i].counter++;
-    breakpoint_hit = i;
+    m_newBreakpoint[source][i].counter++;
+    setBreakpointHit(i, source);
     break_event = BreakEvent::BreakpointHit;
     scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
     break;
@@ -142,15 +170,7 @@ void Debugger::write(Debugger::MemorySource source, unsigned addr, uint8 data) {
 Debugger::Debugger() {
   break_event = BreakEvent::None;
 
-  for(unsigned n = 0; n < Breakpoints; n++) {
-    breakpoint[n].enabled = false;
-    breakpoint[n].addr = 0;
-    breakpoint[n].data = -1;
-    breakpoint[n].mode = (unsigned)Breakpoint::Mode::Exec;
-    breakpoint[n].source = BreakpointSourceBus::CPUBus;
-    breakpoint[n].counter = 0;
-  }
-  breakpoint_hit = 0;
+  setBreakpointHit(0, BreakpointSourceBus::CPUBus);
 
   step_cpu = false;
   step_smp = false;
@@ -165,38 +185,51 @@ Debugger::Debugger() {
 
 bool Debugger::getBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, Breakpoint& outBreakpoint)
 {
-  if (breakpointId >= 0 && breakpointId < Breakpoints)
+  if (breakpointId > 0 && sourceBus >= 0 && sourceBus < Num_SourceBus)
   {
-    outBreakpoint = breakpoint[breakpointId];
-    return true;
+    nall::linear_vector<Breakpoint>& breakpointVec = m_newBreakpoint[sourceBus];
+    for (int i = 0; i < breakpointVec.size(); ++i)
+    {
+      if (breakpointVec[i].unique_id = breakpointId)
+      {
+        outBreakpoint = breakpointVec[i];
+        return true;
+      }
+    }
   }
   return false;
 }
 
 void Debugger::setBreakpoint(int breakpointId, BreakpointSourceBus sourceBus, const Breakpoint& newBreakpoint)
 {
-  if (breakpointId >= 0 && breakpointId < Breakpoints)
+  if (breakpointId > 0 && sourceBus >= 0 && sourceBus < Num_SourceBus)
   {
-    breakpoint[breakpointId] = newBreakpoint;
+    nall::linear_vector<Breakpoint>& breakpointVec = m_newBreakpoint[sourceBus];
+    for (int i = 0; i < breakpointVec.size(); ++i)
+    {
+      if (breakpointVec[i].unique_id = breakpointId)
+      {
+        breakpointVec[i] = newBreakpoint;
+        return;
+      }
+    }
+
+    // if we reached here, we didn't already have a breakpoint matching one in storage
+    breakpointVec.append(newBreakpoint);
   }
 }
 
-Debugger::BreakpointSourceBus Debugger::getBreakpointSourceBus(int breakpointId) const
+void Debugger::setBreakpointHit(int breakpointId, BreakpointSourceBus source)
 {
-  if (breakpointId >= 0 && breakpointId < Breakpoints)
-  {
-    return breakpoint[breakpointId].source;
-  }
-
-  if (breakpointId == SoftBreakCPU)
-  {
-    return BreakpointSourceBus::CPUBus;
-  }
-
-  if (breakpointId == SoftBreakSA1)
-  {
-    return BreakpointSourceBus::SA1Bus;
-  }
+  m_breakpointHitId = breakpointId;
+  m_breakpointHitSource = source;
 }
+
+void Debugger::getBreakpointHit(int &breakpointId, BreakpointSourceBus &source)
+{
+  breakpointId = m_breakpointHitId;
+  source = m_breakpointHitSource;
+}
+
 
 #endif
