@@ -10,7 +10,7 @@ bool Cartridge::information(const char *filename, Cartridge::Information &info) 
   file fp;
   if(fp.open(filename, file::mode::read) == false) return false;
 
-  if(striend(filename, ".sfc")) {
+  if(striend(filename, ".sfc") || striend(filename, ".smc")) {
     if(fp.size() < 0x8000) return false;
 
     unsigned offset = 0;
