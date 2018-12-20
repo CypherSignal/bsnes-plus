@@ -1,19 +1,18 @@
-class BreakpointItem : public QWidget {
+class BreakpointItem : public QObject {
   Q_OBJECT
 
-enum {
-  BreakAddrStart,
-  BreakAddrDash,
-  BreakAddrEnd,
-  BreakData,
-  BreakRead,
-  BreakWrite,
-  BreakExecute,
-  BreakSource
-};
-
 public:
-  QGridLayout *layout;
+  enum {
+    BreakAddrStart = 0,
+    BreakAddrDash,
+    BreakAddrEnd,
+    BreakData,
+    BreakRead,
+    BreakWrite,
+    BreakExecute,
+    BreakSource
+  };
+
   QLineEdit *addr;
   QLineEdit *addr_end;
   QLineEdit *data;
@@ -21,7 +20,7 @@ public:
   QCheckBox *mode_w;
   QCheckBox *mode_x;
   QComboBox *source;
-  BreakpointItem(unsigned id);
+  BreakpointItem(QGridLayout* gridLayout, int row);
 
   void removeBreakpoint();
   void setBreakpoint(string addr, string mode, string source);
@@ -41,14 +40,13 @@ public slots:
   void clear();
 
 private:
-  const unsigned id;
+  int m_breakpointId;
 };
 
 class BreakpointEditor : public Window {
   Q_OBJECT
 
 public:
-  QVBoxLayout *layout;
   BreakpointItem *breakpoint[SNES::Debugger::Breakpoints];
   QCheckBox *breakOnWDM;
   QCheckBox *breakOnBRK;

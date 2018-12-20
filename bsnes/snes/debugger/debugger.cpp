@@ -175,6 +175,7 @@ Debugger::Debugger() {
   break_event = BreakEvent::None;
 
   m_breakpointHitId = 0;
+  m_breakpointUniqueId = 100;
 
   step_cpu = false;
   step_smp = false;
@@ -203,6 +204,7 @@ bool Debugger::getBreakpoint(int breakpointId, Breakpoint& outBreakpoint)
   else if (breakpointId == SoftBreakCPU || breakpointId == SoftBreakSA1)
   {
     Breakpoint softBp;
+    softBp.unique_id = breakpointId;
     softBp.source = (breakpointId == SoftBreakCPU ? BreakpointSourceBus::CPUBus : BreakpointSourceBus::SA1Bus);
     outBreakpoint = softBp;
     return true;
@@ -210,21 +212,23 @@ bool Debugger::getBreakpoint(int breakpointId, Breakpoint& outBreakpoint)
   return false;
 }
 
-void Debugger::setBreakpoint(int breakpointId, const Breakpoint& newBreakpoint)
+int Debugger::addBreakpoint(Breakpoint newBreakpoint)
 {
-  if (breakpointId > 0)
-  {
-    for (int i = 0; i < m_breakpointList.size(); ++i)
-    {
-      if (m_breakpointList[i].unique_id == breakpointId)
-      {
-        m_breakpointList[i] = newBreakpoint;
-        return;
-      }
-    }
+  ++m_breakpointUniqueId;
+  newBreakpoint.unique_id = m_breakpointUniqueId;
+  m_breakpointList.append(newBreakpoint);
+  return m_breakpointUniqueId;
+}
 
-    // if we reached here, we didn't already have a breakpoint matching one in storage
-    m_breakpointList.append(newBreakpoint);
+void Debugger::removeBreakpoint(int breakpointId)
+{
+  for (int i = 0; i < m_breakpointList.size(); ++i)
+  {
+    if (m_breakpointList[i].unique_id == breakpointId)
+    {
+      m_breakpointList.remove(i);
+      return;
+    }
   }
 }
 

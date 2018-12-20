@@ -61,17 +61,17 @@ public:
   Debugger();
 
   bool getBreakpoint(int breakpointId, Breakpoint& outBreakpoint);
-  void setBreakpoint(int breakpointId, const Breakpoint& newBreakpoint);
+  
+  int addBreakpoint(Breakpoint newBreakpoint);
+  void removeBreakpoint(int breakpointId);
 
   int getBreakpointHit();
   void setBreakpointHit(int breakpointId);
 
 private:
-  // dcrooks-todo can we do something to guarantee that breakpointVec is always sorted by the breakpoint's unique_id,
-  // and therefore any lookups to it can be done through binary search?
   nall::linear_vector<Breakpoint> m_breakpointList;
   int m_breakpointHitId;
-
+  int m_breakpointUniqueId;
 };
 
 extern Debugger debugger;
