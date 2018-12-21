@@ -353,6 +353,8 @@ void ExternDebugHandler::handleSetBreakpointRequest(const nlohmann::json& pendin
         SNES::Debugger::Breakpoint bp;
         bp.addr = address;
         bp.enabled = true;
+        bp.mode = (unsigned)SNES::Debugger::Breakpoint::Mode::Exec;
+        bp.source = SNES::Debugger::BreakpointSourceBus::CPUBus;
         m_activeBreakpoints[file].append(SNES::debugger.addBreakpoint(bp));
 
         responseJson["body"]["breakpoints"].push_back({
