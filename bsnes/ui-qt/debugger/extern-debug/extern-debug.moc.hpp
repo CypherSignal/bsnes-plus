@@ -30,12 +30,13 @@ public slots:
 
 private:
   void handleRequest(const nlohmann::json& request, QTcpSocket* responseConnection);
-  
+  void handlePreLaunchBreakpoints(QTcpSocket* responseConnection);
+
   void handleTerminateRequest(const nlohmann::json& pendingRequest);
   void handleLaunchRequest(const nlohmann::json& pendingRequest);
   void handleRestartRequest(const nlohmann::json& pendingRequest);
-  void handleSetBreakpointRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
-  void handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest);
+  void handleSetBreakpointRequest(const nlohmann::json& pendingRequest, nlohmann::json& responseJson);
+  void handleStackTraceRequest(const nlohmann::json& pendingRequest, nlohmann::json& responseJson);
 
   nlohmann::json createResponse(const nlohmann::json& request);
   nlohmann::json createEvent(const char* eventType);
@@ -47,6 +48,15 @@ private:
   QTcpServer m_debugProtocolServer;
   QPointer<QTcpSocket> m_debugProtocolConnection;
 
+  // Before launch request is sent, some breakpoint requests are sent.
+  // Keep those off to the side until launch is done, and then fire them immediately
+  bool m_launchRequestReceived;
+  nall::linear_vector<nlohmann::json> m_preLaunchBreakpointRequests;
+
+  // the SetBreakpoint request specification is such that a bundle of breakpoints for
+  // one file are all sent at once, and all previous breakpoints from that file should
+  // be removed. This is a vector that stores for each fileId, a vector of active breakpoints.
+  nall::linear_vector<nall::linear_vector<int>> m_activeBreakpoints;
 };
 
 extern ExternDebugHandler* externDebugHandler;

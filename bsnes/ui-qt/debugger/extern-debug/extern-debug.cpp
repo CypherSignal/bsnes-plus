@@ -197,6 +197,8 @@ void ExternDebugHandler::handleRequest(const nlohmann::json& request, QTcpSocket
     responseJson["body"]["pid"] = QCoreApplication::applicationPid();
     break;
   case "initialize"_hash:
+    m_launchRequestReceived = false;
+    m_preLaunchBreakpointRequests.reset();
     responseJson["body"]["supportsConfigurationDoneRequest"] = true;
     responseJson["body"]["supportsRestartRequest"] = true;
     responseJson["body"]["supportsTerminateRequest"] = true;
@@ -223,19 +225,46 @@ void ExternDebugHandler::handleRequest(const nlohmann::json& request, QTcpSocket
     responseJson["body"]["threads"][0]["id"] = 0;
     break;
   case "stackTrace"_hash:
-    handleStackTraceRequest(responseJson, request);
+    handleStackTraceRequest(request, responseJson);
     break;
   case "launch"_hash:
     handleLaunchRequest(request);
+    handlePreLaunchBreakpoints(responseConnection);
     break;
   case "restart"_hash:
     handleRestartRequest(request);
     break;
   case "setBreakpoints"_hash:
-    handleSetBreakpointRequest(responseJson, request);
+    if (m_launchRequestReceived)
+    {
+      handleSetBreakpointRequest(request, responseJson);
+    }
+    else
+    {
+      m_preLaunchBreakpointRequests.append(request);
+    }
+    break;
+  case "attach"_hash:
+    handlePreLaunchBreakpoints(responseConnection);
     break;
   }
   writeJson(responseJson, responseConnection);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void ExternDebugHandler::handlePreLaunchBreakpoints(QTcpSocket* responseConnection)
+{
+  m_launchRequestReceived = true;
+  {
+    for (int i = 0; i < m_preLaunchBreakpointRequests.size(); ++i)
+    {
+      nlohmann::json bpResponseJson = createResponse(m_preLaunchBreakpointRequests[i]);
+      handleSetBreakpointRequest(m_preLaunchBreakpointRequests[i], bpResponseJson);
+      writeJson(bpResponseJson, responseConnection);
+    }
+    m_preLaunchBreakpointRequests.reset();
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -285,21 +314,32 @@ void ExternDebugHandler::handleRestartRequest(const nlohmann::json& pendingReque
 
 //////////////////////////////////////////////////////////////////////////
 
-void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
+void ExternDebugHandler::handleSetBreakpointRequest(const nlohmann::json& pendingRequest, nlohmann::json& responseJson)
 {
   const nlohmann::json& sourceArg = pendingRequest["arguments"]["source"];
   
   uint32_t file = 0;
   uint32_t line = 0;
 
-  // dcrooks-todo: this wipes out all breakpoints across all files, right?
-  breakpointEditor->clear();
-
   if (sourceArg["path"].is_string())
   {
     const auto& sourcePath = sourceArg["path"].get_ref<const nlohmann::json::string_t&>();
     if (m_symbolMap && m_symbolMap->getFileIdFromPath(sourcePath.data(), file))
     {
+
+      if (file >= m_activeBreakpoints.size())
+      {
+        m_activeBreakpoints.resize(file+1);
+      }
+
+      // first, clear all breakpoints associated with the given file
+      for (int i = 0; i < m_activeBreakpoints[file].size(); ++i)
+      {
+        SNES::debugger.removeBreakpoint(m_activeBreakpoints[file][i]);
+      }
+      m_activeBreakpoints[file].reset();
+
+      // then go through pendingRequest and identify all new breakpoints
       for (const auto& breakpoint : pendingRequest["arguments"]["breakpoints"])
       {
         line = breakpoint["line"];
@@ -309,7 +349,11 @@ void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson
 
         char addrString[16];
         snprintf(addrString, 16, "%.8x", address);
-        breakpointEditor->addBreakpoint(addrString, "x", "cpu");
+        
+        SNES::Debugger::Breakpoint bp;
+        bp.addr = address;
+        bp.enabled = true;
+        m_activeBreakpoints[file].append(SNES::debugger.addBreakpoint(bp));
 
         responseJson["body"]["breakpoints"].push_back({
             {"verified", foundLine },
@@ -323,7 +367,7 @@ void ExternDebugHandler::handleSetBreakpointRequest(nlohmann::json& responseJson
 
 //////////////////////////////////////////////////////////////////////////
 
-void ExternDebugHandler::handleStackTraceRequest(nlohmann::json& responseJson, const nlohmann::json& pendingRequest)
+void ExternDebugHandler::handleStackTraceRequest(const nlohmann::json& pendingRequest, nlohmann::json& responseJson)
 {
   // First, assemble a list of programAddresses and stackFrameAddresses
   nall::linear_vector<uint32_t> programAddresses;

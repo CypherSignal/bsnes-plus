@@ -125,6 +125,8 @@ string BreakpointItem::getBus() const {
 }
 
 void BreakpointItem::toggle() {
+  SNES::debugger.removeBreakpoint(m_breakpointId);
+
   SNES::Debugger::Breakpoint bp;
   bool state = mode_r->isChecked() | mode_w->isChecked() | mode_x->isChecked();
   bp.enabled = state;
@@ -145,9 +147,8 @@ void BreakpointItem::toggle() {
     bp.mode |= mode_x->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
 
     bp.source = (SNES::Debugger::BreakpointSourceBus)source->currentIndex();
+    m_breakpointId = SNES::debugger.addBreakpoint(bp);
   }
-  SNES::debugger.removeBreakpoint(m_breakpointId);
-  m_breakpointId = SNES::debugger.addBreakpoint(bp);
 }
 
 void BreakpointItem::clear() {
