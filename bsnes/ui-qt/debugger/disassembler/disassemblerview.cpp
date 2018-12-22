@@ -257,12 +257,13 @@ void DisassemblerView::setComment() {
 // ------------------------------------------------------------------------
 void DisassemblerView::toggleBreakpoint() {
   uint32_t address = mouseStateValue;
-  int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
+  // dcrooks-todo probably need to add an accessor to find some breakpoint for this value
+  int breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
 
-  if (breakpoint >= 0) {
-    breakpointEditor->removeBreakpoint(breakpoint);
+  if (breakpoint > 0) {
+    SNES::debugger.removeBreakpoint(breakpoint);
   } else {
-    breakpointEditor->addBreakpoint(nall::hex(address), "x", processor->getBreakpointBusName());
+    SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString(nall::hex(address), "x", processor->getBreakpointBusName()));
   }
 
   viewport()->update();

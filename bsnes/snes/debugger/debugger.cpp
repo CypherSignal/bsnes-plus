@@ -2,6 +2,163 @@
 
 Debugger debugger;
 
+// dcrooks-todo need to actually test this
+Debugger::Breakpoint Debugger::breakpointFromString(const char* desc)
+{
+  const char* params[3] = {0};
+  params[0] = desc;
+
+  if (auto modePos = nall::strpos(params[0], ":"))
+  {
+    params[1] = &desc[modePos()];
+    if (auto sourcePos = nall::strpos(params[1], ":"))
+    {
+      params[2] = &desc[sourcePos()];
+    }
+  }
+  return breakpointFromString(params[0], params[1], params[2]);
+}
+
+// dcrooks-todo need to actually test this
+Debugger::Breakpoint Debugger::breakpointFromString(const char* addr, const char* mode, const char* source)
+{
+  Breakpoint bp;
+  char temp[32] = {0};
+  
+  // "Addr" string can be "xxxx-xxxx=xxxx"
+  if (addr)
+  {
+    nall::strlcpy(temp, addr, 32);
+
+    // sample first characters as hex to get addr (hex short-circuits on non-hex value)
+    bp.addr = nall::hex(temp);
+
+    // find '-' and start from there for addr_end
+    if (auto addrEndPos = nall::strpos(temp, "-"))
+    {
+      bp.addr_end = nall::hex(&temp[addrEndPos()]);
+    }
+
+    // find '=' and start from there for data
+    if (auto dataPos = nall::strpos(temp, "="))
+    {
+      bp.data = (signed)nall::hex(&temp[dataPos()]);
+    }
+  }
+
+
+  if (mode)
+  {
+    // copy 'mode' into temp and do position checks to set mode bitfield
+    nall::strlcpy(temp, mode, 4);
+    nall::strlower(temp);
+
+    if (nall::strpos(temp, "x"))
+    {
+      bp.mode |= (unsigned)Breakpoint::Mode::Exec;
+    }
+    if (nall::strpos(temp, "r"))
+    {
+      bp.mode |= (unsigned)Breakpoint::Mode::Read;
+    }
+    if (nall::strpos(temp, "w"))
+    {
+      bp.mode |= (unsigned)Breakpoint::Mode::Write;
+    }
+  }
+
+  // copy 'source' into temp and do hash-switch to determine appropriate sourceBus
+  if (source)
+  {
+    nall::strlcpy(temp, source, 8);
+    nall::strlower(temp);
+    switch (hashCalc(temp, strlen(temp)))
+    {
+    case "cpu"_hash:
+      bp.source = BreakpointSourceBus::CPUBus;
+      break;
+    case "smp"_hash:
+      bp.source = BreakpointSourceBus::APURAM;
+      break;
+    case "vram"_hash:
+      bp.source = BreakpointSourceBus::VRAM;
+      break;
+    case "oam"_hash:
+      bp.source = BreakpointSourceBus::OAM;
+      break;
+    case "cgram"_hash:
+      bp.source = BreakpointSourceBus::CGRAM;
+      break;
+    case "sa1"_hash:
+      bp.source = BreakpointSourceBus::SA1Bus;
+      break;
+    case "sfx"_hash:
+      bp.source = BreakpointSourceBus::SFXBus;
+      break;
+    }
+  }
+
+
+  return bp;
+}
+
+// dcrooks-todo need to actually test this
+string Debugger::breakpointToString(Breakpoint bp)
+{
+  nall::string toReturn;
+  toReturn.reserve(64);
+  
+  {
+    char buffer[24];
+    snprintf(buffer, 24, "%.6x-%.6x=%.6x", bp.addr, bp.addr_end, (unsigned)bp.data);
+    toReturn.append(buffer);
+  }
+
+  if (bp.mode)
+  {
+    toReturn.append(":");
+    if (bp.mode & (unsigned)Breakpoint::Mode::Exec)
+    {
+      toReturn.append("x");
+    }
+    if (bp.mode & (unsigned)Breakpoint::Mode::Read)
+    {
+      toReturn.append("r");
+    }
+    if (bp.mode & (unsigned)Breakpoint::Mode::Write)
+    {
+      toReturn.append("w");
+    }
+  }
+
+  switch (bp.source) {
+    default:
+    case SNES::Debugger::CPUBus:
+      toReturn.append(":cpu");
+      break;
+    case SNES::Debugger::APURAM:
+      toReturn.append(":smp");
+      break;
+    case SNES::Debugger::VRAM:
+      toReturn.append(":vram");
+      break;
+    case SNES::Debugger::OAM:
+      toReturn.append(":oam");
+      break;
+    case SNES::Debugger::CGRAM:
+      toReturn.append(":cgram");
+      break;
+    case SNES::Debugger::SA1Bus:
+      toReturn.append(":sa1");
+      break;
+    case SNES::Debugger::SFXBus:
+      toReturn.append(":sfx");
+      break;
+  }
+
+  return toReturn;
+}
+
 void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
   for(unsigned i = 0; i < m_breakpointList.size(); ++i) {
     const Breakpoint bp = m_breakpointList[i];

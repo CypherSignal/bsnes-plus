@@ -47,11 +47,12 @@ void SymbolsView::bind(QTreeWidgetItem *item, int value) {
   uint32_t address = item->data(0, Qt::UserRole).toUInt();
   bool enable = item->checkState(0);
 
-  int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
-  if (!enable && breakpoint >= 0) {
+  // dcrooks-todo probably need to add an accessor to find some breakpoint for this value
+  int breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
+  if (!enable && breakpoint > 0) {
     breakpointEditor->removeBreakpoint(breakpoint);
   } else if (enable) {
-    breakpointEditor->addBreakpoint(nall::hex(address), "x", processor->getBreakpointBusName());
+    SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString(nall::hex(address), "x", processor->getBreakpointBusName()));
   }
 }
 

@@ -21,9 +21,12 @@ public:
     Num_SourceBus = 7,
   };
 
-  enum { Breakpoints = 8,
-         SoftBreakCPU = -1,
-         SoftBreakSA1 = -2, };
+  enum { 
+    Breakpoints = 8,
+    SoftBreakCPU = -1,
+    SoftBreakSA1 = -2, 
+  };
+
   struct Breakpoint {
     int unique_id = 0;
     bool enabled = false;
@@ -31,12 +34,19 @@ public:
     unsigned addr_end = 0; //0 = unused
     signed data = -1;  //-1 = unused
     
-    enum class Mode : unsigned { Exec = 1, Read = 2, Write = 4 };
+    enum class Mode : unsigned {
+      Exec = 1 << 0,
+      Read = 1 << 1, 
+      Write = 1 << 2
+    };
     unsigned mode = (unsigned)Mode::Exec;
     
     BreakpointSourceBus source = BreakpointSourceBus::CPUBus;
     unsigned counter = 0;  //number of times breakpoint has been hit since being set
   };
+  static Breakpoint breakpointFromString(const char* desc);
+  static Breakpoint breakpointFromString(const char* addr, const char* mode, const char* source);
+  static string breakpointToString(Breakpoint bp);
 
   void breakpoint_test(BreakpointSourceBus source, Breakpoint::Mode mode, unsigned addr, uint8 data);
 

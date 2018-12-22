@@ -109,28 +109,28 @@ bool BreakpointItem::isModeX() const {
   return false;
 }
 
-string BreakpointItem::getBus() const {
-  switch ((SNES::Debugger::BreakpointSourceBus)source->currentIndex()) {
-    default:
-    case SNES::Debugger::CPUBus: return "cpu";
-    case SNES::Debugger::APURAM: return "smp";
-    case SNES::Debugger::VRAM: return "vram";
-    case SNES::Debugger::OAM: return "oam";
-    case SNES::Debugger::CGRAM: return "cgram";
-    case SNES::Debugger::SA1Bus: return "sa1";
-    case SNES::Debugger::SFXBus: return "sfx";
-  }
-
-  return "";
-}
+//string BreakpointItem::getBus() const {
+//  switch ((SNES::Debugger::BreakpointSourceBus)source->currentIndex()) {
+//    default:
+//    case SNES::Debugger::CPUBus: return "cpu";
+//    case SNES::Debugger::APURAM: return "smp";
+//    case SNES::Debugger::VRAM: return "vram";
+//    case SNES::Debugger::OAM: return "oam";
+//    case SNES::Debugger::CGRAM: return "cgram";
+//    case SNES::Debugger::SA1Bus: return "sa1";
+//    case SNES::Debugger::SFXBus: return "sfx";
+//  }
+//
+//  return "";
+//}
 
 void BreakpointItem::toggle() {
   SNES::debugger.removeBreakpoint(m_breakpointId);
 
-  SNES::Debugger::Breakpoint bp;
   bool state = mode_r->isChecked() | mode_w->isChecked() | mode_x->isChecked();
-  bp.enabled = state;
   if (state) {
+    SNES::Debugger::Breakpoint bp;
+    bp.enabled = state;
     bp.addr = hex(addr->text().toUtf8().data()) & 0xffffff;
     bp.addr_end = hex(addr_end->text().toUtf8().data()) & 0xffffff;
     if (addr_end->text().length() == 0) {
@@ -168,58 +168,58 @@ void BreakpointItem::removeBreakpoint() {
   toggle();
 }
 
-void BreakpointItem::setBreakpoint(string addrStr, string mode, string sourceStr) {
-  if (addrStr == "") return;
+//void BreakpointItem::setBreakpoint(string addrStr, string mode, string sourceStr) {
+//  if (addrStr == "") return;
+//
+//  sourceStr.lower();
+//  if(sourceStr == "cpu")        { source->setCurrentIndex(0); }
+//  else if(sourceStr == "smp")   { source->setCurrentIndex(1); }
+//  else if(sourceStr == "vram")  { source->setCurrentIndex(2); }
+//  else if(sourceStr == "oam")   { source->setCurrentIndex(3); }
+//  else if(sourceStr == "cgram") { source->setCurrentIndex(4); }
+//  else if(sourceStr == "sa1")   { source->setCurrentIndex(5); }
+//  else if(sourceStr == "sfx")   { source->setCurrentIndex(6); }
+//  else { return; }
+//
+//  mode.lower();
+//  if(mode.position("r")) { mode_r->setChecked(true); }
+//  if(mode.position("w")) { mode_w->setChecked(true); }
+//  if(mode.position("x")) { mode_x->setChecked(true); }
+//
+//  lstring addresses;
+//  addresses.split<2>("=", addrStr);
+//  if (addresses.size() >= 2) { data->setText(addresses[1]); }
+//  
+//  addrStr = addresses[0];
+//  addresses.split<2>("-", addrStr);
+//  addr->setText(addresses[0]);
+//  if (addresses.size() >= 2) { addr_end->setText(addresses[1]); }
+//
+//  toggle();
+//}
 
-  sourceStr.lower();
-  if(sourceStr == "cpu")        { source->setCurrentIndex(0); }
-  else if(sourceStr == "smp")   { source->setCurrentIndex(1); }
-  else if(sourceStr == "vram")  { source->setCurrentIndex(2); }
-  else if(sourceStr == "oam")   { source->setCurrentIndex(3); }
-  else if(sourceStr == "cgram") { source->setCurrentIndex(4); }
-  else if(sourceStr == "sa1")   { source->setCurrentIndex(5); }
-  else if(sourceStr == "sfx")   { source->setCurrentIndex(6); }
-  else { return; }
-
-  mode.lower();
-  if(mode.position("r")) { mode_r->setChecked(true); }
-  if(mode.position("w")) { mode_w->setChecked(true); }
-  if(mode.position("x")) { mode_x->setChecked(true); }
-
-  lstring addresses;
-  addresses.split<2>("=", addrStr);
-  if (addresses.size() >= 2) { data->setText(addresses[1]); }
-  
-  addrStr = addresses[0];
-  addresses.split<2>("-", addrStr);
-  addr->setText(addresses[0]);
-  if (addresses.size() >= 2) { addr_end->setText(addresses[1]); }
-
-  toggle();
-}
-
-string BreakpointItem::toString() const {
-  if (addr->text().isEmpty()) return "";
-  
-  string breakpoint;
-  
-  breakpoint << addr->text().toUtf8().data();
-  if (!addr_end->text().isEmpty()) {
-    breakpoint << "-" << addr_end->text().toUtf8().data();
-  }
-  if (!data->text().isEmpty()) {
-    breakpoint << "=" << data->text().toUtf8().data();
-  }
-  
-  breakpoint << ":";
-  if (mode_r->isChecked()) breakpoint << "r";
-  if (mode_w->isChecked()) breakpoint << "w";
-  if (mode_x->isChecked()) breakpoint << "x";
-  
-  breakpoint << ":" << getBus();
-  
-  return breakpoint;
-}
+//string BreakpointItem::toString() const {
+//  if (addr->text().isEmpty()) return "";
+//  
+//  string breakpoint;
+//  
+//  breakpoint << addr->text().toUtf8().data();
+//  if (!addr_end->text().isEmpty()) {
+//    breakpoint << "-" << addr_end->text().toUtf8().data();
+//  }
+//  if (!data->text().isEmpty()) {
+//    breakpoint << "=" << data->text().toUtf8().data();
+//  }
+//  
+//  breakpoint << ":";
+//  if (mode_r->isChecked()) breakpoint << "r";
+//  if (mode_w->isChecked()) breakpoint << "w";
+//  if (mode_x->isChecked()) breakpoint << "x";
+//  
+//  breakpoint << ":" << getBus();
+//  
+//  return breakpoint;
+//}
 
 BreakpointEditor::BreakpointEditor() {
   setObjectName("breakpoint-editor");
@@ -290,23 +290,23 @@ void BreakpointEditor::setBreakOnBrk(bool b) {
   SNES::debugger.break_on_brk = b;
 }
 
-void BreakpointEditor::addBreakpoint(const string& addr, const string& mode, const string& source) {
-  for(unsigned n = 0; n < SNES::Debugger::Breakpoints; n++) {
-    if(breakpoint[n]->addr->text().isEmpty()) {
-      breakpoint[n]->setBreakpoint(addr, mode, source);
-      return;
-    }
-  }
-}
+//void BreakpointEditor::addBreakpoint(const string& addr, const string& mode, const string& source) {
+//  for(unsigned n = 0; n < SNES::Debugger::Breakpoints; n++) {
+//    if(breakpoint[n]->addr->text().isEmpty()) {
+//      breakpoint[n]->setBreakpoint(addr, mode, source);
+//      return;
+//    }
+//  }
+//}
 
-void BreakpointEditor::addBreakpoint(const string& breakpoint) {
-  lstring param;
-  param.split<3>(":", breakpoint);
-  if(param.size() == 1) { param.append("rwx"); }
-  if(param.size() == 2) { param.append("cpu"); }
-  
-  this->addBreakpoint(param[0], param[1], param[2]);
-}
+//void BreakpointEditor::addBreakpoint(const string& breakpoint) {
+//  lstring param;
+//  param.split<3>(":", breakpoint);
+//  if(param.size() == 1) { param.append("rwx"); }
+//  if(param.size() == 2) { param.append("cpu"); }
+//  
+//  this->addBreakpoint(param[0], param[1], param[2]);
+//}
 
 void BreakpointEditor::removeBreakpoint(uint32_t index) {
   if (index >= SNES::Debugger::Breakpoints) {
@@ -326,14 +326,14 @@ int32_t BreakpointEditor::indexOfBreakpointExec(uint32_t addr, const string &sou
   return -1;
 }
 
-string BreakpointEditor::toStrings() const {
-  string breakpoints;
-  
-  for(unsigned n = 0; n < SNES::Debugger::Breakpoints; n++) {
-    if(!breakpoint[n]->addr->text().isEmpty()) {
-      breakpoints << breakpoint[n]->toString() << "\n";
-    }
-  }
-  
-  return breakpoints;
-}
+//string BreakpointEditor::toStrings() const {
+//  string breakpoints;
+//  
+//  for(unsigned n = 0; n < SNES::Debugger::Breakpoints; n++) {
+//    if(!breakpoint[n]->addr->text().isEmpty()) {
+//      breakpoints << breakpoint[n]->toString() << "\n";
+//    }
+//  }
+//  
+//  return breakpoints;
+//}

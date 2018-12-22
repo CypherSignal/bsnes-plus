@@ -246,7 +246,7 @@ void Debugger::modifySystemState(unsigned state) {
         line.split("\n", data);
       
         for (int i = 0; i < line.size(); i++) {
-          breakpointEditor->addBreakpoint(line[i]);
+          SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString((const char*)(line[i])));
         }
       }
     }
@@ -272,7 +272,9 @@ void Debugger::modifySystemState(unsigned state) {
     symbolsSA1->unloadAll();
 
     if(config().debugger.saveBreakpoints) {
-      string data = breakpointEditor->toStrings();
+      string data;
+      // dcrooks-todo need to get user-set breakpoints and repeatedly append that onto data
+      //string data = breakpointEditor->toStrings();
       
       // don't write an empty list of breakpoints unless the file already exists
       if ((data.length() || file::exists(bpfile)) && fp.open(bpfile, file::mode::write)) {

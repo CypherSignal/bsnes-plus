@@ -16,17 +16,6 @@ ExternDebugHandler *externDebugHandler;
 //////////////////////////////////////////////////////////////////////////
 // simple string-hash function for switching on response types
 
-constexpr unsigned long hashCalc(const char* ch, size_t len)
-{
-  return len > 0 ? ((unsigned long)(*ch) + hashCalc(ch + 1, len - 1) * 33) % (1 << 26) : 0;
-}
-constexpr unsigned long operator "" _hash(const char* ch, size_t len)
-{
-  return hashCalc(ch, len);
-}
-
-//////////////////////////////////////////////////////////////////////////
-
 void writeJson(const nlohmann::json &jsonObj, QTcpSocket* socket)
 {
   if (socket && socket->state() == QAbstractSocket::ConnectedState)
