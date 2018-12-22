@@ -22,15 +22,7 @@ public:
   QComboBox *memory_bus;
   BreakpointItem(QGridLayout* gridLayout, int row);
 
-  bool isEnabled() const;
-  uint32_t getAddressFrom() const;
-  uint32_t getAddressTo() const;
-  bool isModeR() const;
-  bool isModeW() const;
-  bool isModeX() const;
-
 public slots:
-  void init();
   void toggle();
   void clear();
 
@@ -49,8 +41,6 @@ public:
   BreakpointEditor();
 
   void setBreakOnBrk(bool b);
-
-  int32_t indexOfBreakpointExec(uint32_t addr, const string &source) const;
 
 public slots:
   void toggle();

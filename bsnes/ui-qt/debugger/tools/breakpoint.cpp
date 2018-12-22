@@ -5,7 +5,6 @@ BreakpointItem::BreakpointItem(QGridLayout* gridLayout, int row) : m_breakpointI
   addr = new QLineEdit;
   addr->setFixedWidth(80);
   gridLayout->addWidget(addr, row, BreakAddrStart);
-  connect(addr, SIGNAL(textChanged(const QString&)), this, SLOT(init()));
   connect(addr, SIGNAL(textChanged(const QString&)), this, SLOT(toggle()));
   
   QLabel* dashLabel = new QLabel(" - ");
@@ -14,13 +13,11 @@ BreakpointItem::BreakpointItem(QGridLayout* gridLayout, int row) : m_breakpointI
   addr_end = new QLineEdit;
   addr_end->setFixedWidth(80);
   gridLayout->addWidget(addr_end, row, BreakAddrEnd);
-  connect(addr_end, SIGNAL(textChanged(const QString&)), this, SLOT(init()));
   connect(addr_end, SIGNAL(textChanged(const QString&)), this, SLOT(toggle()));
   
   data = new QLineEdit;
   data->setFixedWidth(60);
   gridLayout->addWidget(data, row, BreakData);
-  connect(data, SIGNAL(textChanged(const QString&)), this, SLOT(init()));
   connect(data, SIGNAL(textChanged(const QString&)), this, SLOT(toggle()));
   
   mode_r = new QCheckBox;
@@ -42,71 +39,7 @@ BreakpointItem::BreakpointItem(QGridLayout* gridLayout, int row) : m_breakpointI
   memory_bus->addItem("SA-1 bus");
   memory_bus->addItem("SuperFX bus");
   gridLayout->addWidget(memory_bus, row, BreakSource);
-  connect(memory_bus, SIGNAL(currentIndexChanged(int)), this, SLOT(init()));
   connect(memory_bus, SIGNAL(currentIndexChanged(int)), this, SLOT(toggle()));
-  
-  init();
-}
-
-void BreakpointItem::init() {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    bp.enabled = false;
-    bp.counter = 0;
-  }
-}
-
-bool BreakpointItem::isEnabled() const {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    return bp.enabled;
-  }
-  return false;
-}
-
-uint32_t BreakpointItem::getAddressFrom() const {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    return bp.addr;
-  }
-  return 0;
-}
-
-uint32_t BreakpointItem::getAddressTo() const {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    if (bp.addr_end == 0) {
-      return bp.addr;
-    }
-    else {
-      return bp.addr_end;
-    }
-  }
-  return 0;
-}
-
-bool BreakpointItem::isModeR() const {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Read;
-  }
-  return false;
-}
-
-bool BreakpointItem::isModeW() const {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Write;
-  }
-  return false;
-}
-
-bool BreakpointItem::isModeX() const {
-  SNES::Debugger::Breakpoint bp;
-  if (SNES::debugger.getBreakpoint(m_breakpointId, bp)) {
-    return bp.mode & (unsigned)SNES::Debugger::Breakpoint::Mode::Exec;
-  }
-  return false;
 }
 
 void BreakpointItem::toggle() {
@@ -217,15 +150,5 @@ void BreakpointEditor::clear() {
 void BreakpointEditor::setBreakOnBrk(bool b) {
   breakOnBRK->setChecked(b);
   SNES::debugger.break_on_brk = b;
-}
-
-int32_t BreakpointEditor::indexOfBreakpointExec(uint32_t addr, const string &source) const {
-  for(unsigned n = 0; n < SNES::Debugger::Breakpoints; n++) {
-    if(breakpoint[n]->isEnabled() && breakpoint[n]->isModeX() && breakpoint[n]->getAddressFrom() <= addr && breakpoint[n]->getAddressTo() >= addr) {
-      return n;
-    }
-  }
-
-  return -1;
 }
 
