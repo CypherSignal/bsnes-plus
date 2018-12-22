@@ -75,25 +75,25 @@ Debugger::Breakpoint Debugger::breakpointFromString(const char* addr, const char
     switch (hashCalc(temp, strlen(temp)))
     {
     case "cpu"_hash:
-      bp.source = BreakpointSourceBus::CPUBus;
+      bp.memory_bus = BreakpointMemoryBus::CPUBus;
       break;
     case "smp"_hash:
-      bp.source = BreakpointSourceBus::APURAM;
+      bp.memory_bus = BreakpointMemoryBus::APURAM;
       break;
     case "vram"_hash:
-      bp.source = BreakpointSourceBus::VRAM;
+      bp.memory_bus = BreakpointMemoryBus::VRAM;
       break;
     case "oam"_hash:
-      bp.source = BreakpointSourceBus::OAM;
+      bp.memory_bus = BreakpointMemoryBus::OAM;
       break;
     case "cgram"_hash:
-      bp.source = BreakpointSourceBus::CGRAM;
+      bp.memory_bus = BreakpointMemoryBus::CGRAM;
       break;
     case "sa1"_hash:
-      bp.source = BreakpointSourceBus::SA1Bus;
+      bp.memory_bus = BreakpointMemoryBus::SA1Bus;
       break;
     case "sfx"_hash:
-      bp.source = BreakpointSourceBus::SFXBus;
+      bp.memory_bus = BreakpointMemoryBus::SFXBus;
       break;
     }
   }
@@ -131,7 +131,7 @@ string Debugger::breakpointToString(Breakpoint bp)
     }
   }
 
-  switch (bp.source) {
+  switch (bp.memory_bus) {
     default:
     case SNES::Debugger::CPUBus:
       toReturn.append(":cpu");
@@ -159,7 +159,7 @@ string Debugger::breakpointToString(Breakpoint bp)
   return toReturn;
 }
 
-void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
+void Debugger::breakpoint_test(Debugger::BreakpointMemoryBus memory_bus, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
   for(unsigned i = 0; i < m_breakpointList.size(); ++i) {
     const Breakpoint bp = m_breakpointList[i];
     
@@ -171,7 +171,7 @@ void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::B
       continue;
     }
 
-    if (bp.source != source) {
+    if (bp.memory_bus != memory_bus) {
       continue;
     }
 
@@ -191,21 +191,21 @@ void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::B
       addr_end = bp.addr_end;
     }
 
-    if (source == Debugger::BreakpointSourceBus::CPUBus) {
+    if (memory_bus == Debugger::BreakpointMemoryBus::CPUBus) {
       for (; addr_start <= addr_end; addr_start += 1 << 16) {
         if (bus.is_mirror(addr_start, addr)) {
           break;
         }
       }
     }
-    else if (source == Debugger::BreakpointSourceBus::SA1Bus) {
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SA1Bus) {
       for (; addr_start <= addr_end; addr_start += 1 << 16) {
         if (sa1bus.is_mirror(addr_start, addr)) {
           break;
         }
       }
     }
-    else if (source == Debugger::BreakpointSourceBus::SFXBus) {
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SFXBus) {
       for (; addr_start <= addr_end; addr_start += 1 << 16) {
         if (superfxbus.is_mirror(addr_start, addr)) {
           break;
@@ -362,7 +362,7 @@ bool Debugger::getBreakpoint(int breakpointId, Breakpoint& outBreakpoint)
   {
     Breakpoint softBp;
     softBp.unique_id = breakpointId;
-    softBp.source = (breakpointId == SoftBreakCPU ? BreakpointSourceBus::CPUBus : BreakpointSourceBus::SA1Bus);
+    softBp.memory_bus = (breakpointId == SoftBreakCPU ? BreakpointMemoryBus::CPUBus : BreakpointMemoryBus::SA1Bus);
     outBreakpoint = softBp;
     return true;
   }

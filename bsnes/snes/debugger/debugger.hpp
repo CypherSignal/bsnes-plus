@@ -9,7 +9,7 @@ public:
     SFXStep,
   } break_event;
 
-  enum BreakpointSourceBus
+  enum BreakpointMemoryBus
   {
     CPUBus = 0,
     APURAM = 1,
@@ -41,14 +41,14 @@ public:
     };
     unsigned mode = (unsigned)Mode::Exec;
     
-    BreakpointSourceBus source = BreakpointSourceBus::CPUBus;
+    BreakpointMemoryBus memory_bus = BreakpointMemoryBus::CPUBus;
     unsigned counter = 0;  //number of times breakpoint has been hit since being set
   };
   static Breakpoint breakpointFromString(const char* desc);
   static Breakpoint breakpointFromString(const char* addr, const char* mode, const char* source);
   static string breakpointToString(Breakpoint bp);
 
-  void breakpoint_test(BreakpointSourceBus source, Breakpoint::Mode mode, unsigned addr, uint8 data);
+  void breakpoint_test(BreakpointMemoryBus memory_bus, Breakpoint::Mode mode, unsigned addr, uint8 data);
 
   bool step_cpu;
   bool step_smp;

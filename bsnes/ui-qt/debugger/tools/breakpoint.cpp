@@ -131,7 +131,7 @@ void BreakpointItem::toggle() {
     bp.mode |= mode_w->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Write : 0;
     bp.mode |= mode_x->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
 
-    bp.source = (SNES::Debugger::BreakpointSourceBus)source->currentIndex();
+    bp.memory_bus = (SNES::Debugger::BreakpointMemoryBus)source->currentIndex();
     m_breakpointId = SNES::debugger.addBreakpoint(bp);
   }
 }
