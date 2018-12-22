@@ -369,6 +369,76 @@ bool Debugger::getBreakpoint(int breakpointId, Breakpoint& outBreakpoint)
   return false;
 }
 
+bool Debugger::getUserBreakpoint(BreakpointMemoryBus memory_bus, Breakpoint::Mode mode, unsigned addr, Breakpoint& outBreakpoint)
+{
+  for (unsigned i = 0; i < m_breakpointList.size(); ++i) {
+    const Breakpoint bp = m_breakpointList[i];
+
+    if (!bp.enabled) {
+      continue;
+    }
+
+    if (bp.memory_bus != memory_bus) {
+      continue;
+    }
+
+    if ((bp.mode & (unsigned)mode) == 0) {
+      continue;
+    }
+
+    // account for address mirroring on the S-CPU and SA-1 (and other) buses
+    // (with 64kb granularity for ranged breakpoints)
+    unsigned addr_start = (bp.addr & 0xff0000) | (addr & 0xffff);
+    if (addr_start < bp.addr) {
+      addr_start += 1 << 16;
+    }
+
+    unsigned addr_end = bp.addr;
+    if (bp.addr_end > bp.addr) {
+      addr_end = bp.addr_end;
+    }
+
+    if (memory_bus == Debugger::BreakpointMemoryBus::CPUBus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (bus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SA1Bus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (sa1bus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SFXBus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (superfxbus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (addr_start == addr) {
+          break;
+        }
+      }
+    }
+
+    if (addr_start > addr_end) {
+      continue;
+    }
+
+    // passed all of the checks, so set this as the bp in question, and return
+    outBreakpoint = m_breakpointList[i];
+    return true;
+  }
+
+  return false;
+}
+
 int Debugger::addBreakpoint(Breakpoint newBreakpoint)
 {
   ++m_breakpointUniqueId;
@@ -394,14 +464,14 @@ void Debugger::setBreakpointHit(int breakpointId)
   m_breakpointHitId = breakpointId;
 }
 
-const nall::linear_vector<int> Debugger::getBreakpointIdList()
+nall::linear_vector<int> Debugger::getBreakpointIdList()
 {
   nall::linear_vector<int> breakpointIds;
   breakpointIds.reserve(m_breakpointList.size());
 
   for (int i = 0; i < m_breakpointList.size(); ++i)
   {
-    breakpointIds.push_back(m_breakpointList[i].unique_id);
+    breakpointIds.append(m_breakpointList[i].unique_id);
   }
 }
 

@@ -244,8 +244,8 @@ void Debugger::modifySystemState(unsigned state) {
         nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
         for (int i = 0; i < breakpointIds.size(); ++i)
         {
-          Breakpoint bp;
-          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == Breakpoint::Source::User)
+          SNES::Debugger::Breakpoint bp;
+          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == SNES::Debugger::Breakpoint::Source::User)
           {
             SNES::debugger.removeBreakpoint(breakpointIds[i]);
           }
@@ -291,8 +291,8 @@ void Debugger::modifySystemState(unsigned state) {
         nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
         for (int i = 0; i < breakpointIds.size(); ++i)
         {
-          Breakpoint bp;
-          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == Breakpoint::Source::User)
+          SNES::Debugger::Breakpoint bp;
+          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == SNES::Debugger::Breakpoint::Source::User)
           {
             data << SNES::Debugger::breakpointToString(bp) << "\n";
           }

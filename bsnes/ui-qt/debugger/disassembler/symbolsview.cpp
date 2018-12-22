@@ -47,11 +47,16 @@ void SymbolsView::bind(QTreeWidgetItem *item, int value) {
   uint32_t address = item->data(0, Qt::UserRole).toUInt();
   bool enable = item->checkState(0);
 
-  // dcrooks-todo probably need to add an accessor to find some breakpoint for this value
-  int breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
-  if (!enable && breakpoint > 0) {
-    SNES::debugger.removeBreakpoint(breakpoint);
-  } else if (enable) {
+  if (!enable)
+  {
+    SNES::Debugger::Breakpoint bp;
+    if (SNES::debugger.getUserBreakpoint(processor->getBreakpointBus(), SNES::Debugger::Breakpoint::Mode::Exec, address, bp))
+    {
+      SNES::debugger.removeBreakpoint(bp.unique_id);
+    }
+  }
+  else
+  {
     SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString(nall::hex(address), "x", processor->getBreakpointBusName()));
   }
 }
@@ -88,12 +93,13 @@ void SymbolsView::synchronize() {
       continue;
     }
 
-    int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(sym.address, processor->getBreakpointBusName());
+    SNES::Debugger::Breakpoint bp;
+    SNES::debugger.getUserBreakpoint(processor->getBreakpointBus(), SNES::Debugger::Breakpoint::Mode::Exec, sym.address, bp);
 
     itemList.push_back(new QTreeWidgetItem());
     auto item = itemList.back();
     item->setData(0, Qt::UserRole, QVariant(sym.address));
-    item->setCheckState(0, breakpoint >= 0 ? Qt::Checked : Qt::Unchecked);
+    item->setCheckState(0, bp.unique_id > 0 ? Qt::Checked : Qt::Unchecked);
     item->setText(0, hex<6, '0'>(sym.address));
     item->setText(1, itemText);
   }

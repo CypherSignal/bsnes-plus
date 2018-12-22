@@ -8,6 +8,16 @@ CpuDisasmProcessor::CpuDisasmProcessor(CpuDisasmProcessor::Source source, Symbol
 }
 
 // ------------------------------------------------------------------------
+SNES::Debugger::BreakpointMemoryBus CpuDisasmProcessor::getBreakpointBus() {
+  switch (source) {
+    case CPU: return SNES::Debugger::BreakpointMemoryBus::CPUBus;
+    case SA1: return SNES::Debugger::BreakpointMemoryBus::SA1Bus;
+  }
+
+  return SNES::Debugger::BreakpointMemoryBus::CPUBus;
+}
+
+// ------------------------------------------------------------------------
 string CpuDisasmProcessor::getBreakpointBusName() {
   switch (source) {
     case CPU: return "cpu";

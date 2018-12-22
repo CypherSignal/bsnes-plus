@@ -48,7 +48,7 @@ public:
       ExternDebug, // this was a breakpoint provided via the externdebug/debug adapter system
       User // this was a breakpoint provided by a user (at some point in time - this could have been reloaded from disc)
     };
-    Source source = User;
+    Source source = Source::User;
   };
   static Breakpoint breakpointFromString(const char* desc);
   static Breakpoint breakpointFromString(const char* addr, const char* mode, const char* source);
@@ -77,7 +77,10 @@ public:
   Debugger();
 
   bool getBreakpoint(int breakpointId, Breakpoint& outBreakpoint);
-  
+
+  // finds a breakpoint that matches the given criteria (regardless of data compare, and only fetching User bps)
+  bool getUserBreakpoint(BreakpointMemoryBus memory_bus, Breakpoint::Mode mode, unsigned addr, Breakpoint& outBreakpoint);
+
   int addBreakpoint(Breakpoint newBreakpoint);
   void removeBreakpoint(int breakpointId);
 
