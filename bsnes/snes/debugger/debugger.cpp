@@ -2,7 +2,164 @@
 
 Debugger debugger;
 
-void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
+// dcrooks-todo need to actually test this
+Debugger::Breakpoint Debugger::breakpointFromString(const char* desc)
+{
+  const char* params[3] = {0};
+  params[0] = desc;
+
+  if (auto modePos = nall::strpos(params[0], ":"))
+  {
+    params[1] = &desc[modePos()];
+    if (auto sourcePos = nall::strpos(params[1], ":"))
+    {
+      params[2] = &desc[sourcePos()];
+    }
+  }
+  return breakpointFromString(params[0], params[1], params[2]);
+}
+
+// dcrooks-todo need to actually test this
+Debugger::Breakpoint Debugger::breakpointFromString(const char* addr, const char* mode, const char* memory_bus)
+{
+  Breakpoint bp;
+  char temp[32] = {0};
+  
+  // "Addr" string can be "xxxx-xxxx=xxxx"
+  if (addr)
+  {
+    nall::strlcpy(temp, addr, 32);
+
+    // sample first characters as hex to get addr (hex short-circuits on non-hex value)
+    bp.addr = nall::hex(temp);
+
+    // find '-' and start from there for addr_end
+    if (auto addrEndPos = nall::strpos(temp, "-"))
+    {
+      bp.addr_end = nall::hex(&temp[addrEndPos()]);
+    }
+
+    // find '=' and start from there for data
+    if (auto dataPos = nall::strpos(temp, "="))
+    {
+      bp.data = (signed)nall::hex(&temp[dataPos()]);
+    }
+  }
+
+
+  if (mode)
+  {
+    // copy 'mode' into temp and do position checks to set mode bitfield
+    nall::strlcpy(temp, mode, 4);
+    nall::strlower(temp);
+
+    if (nall::strpos(temp, "x"))
+    {
+      bp.mode |= (unsigned)Breakpoint::Mode::Exec;
+    }
+    if (nall::strpos(temp, "r"))
+    {
+      bp.mode |= (unsigned)Breakpoint::Mode::Read;
+    }
+    if (nall::strpos(temp, "w"))
+    {
+      bp.mode |= (unsigned)Breakpoint::Mode::Write;
+    }
+  }
+
+  // copy 'source' into temp and do hash-switch to determine appropriate sourceBus
+  if (memory_bus)
+  {
+    nall::strlcpy(temp, memory_bus, 8);
+    nall::strlower(temp);
+    switch (hashCalc(temp, strlen(temp)))
+    {
+    case "cpu"_hash:
+      bp.memory_bus = BreakpointMemoryBus::CPUBus;
+      break;
+    case "smp"_hash:
+      bp.memory_bus = BreakpointMemoryBus::APURAM;
+      break;
+    case "vram"_hash:
+      bp.memory_bus = BreakpointMemoryBus::VRAM;
+      break;
+    case "oam"_hash:
+      bp.memory_bus = BreakpointMemoryBus::OAM;
+      break;
+    case "cgram"_hash:
+      bp.memory_bus = BreakpointMemoryBus::CGRAM;
+      break;
+    case "sa1"_hash:
+      bp.memory_bus = BreakpointMemoryBus::SA1Bus;
+      break;
+    case "sfx"_hash:
+      bp.memory_bus = BreakpointMemoryBus::SFXBus;
+      break;
+    }
+  }
+
+
+  return bp;
+}
+
+// dcrooks-todo need to actually test this
+string Debugger::breakpointToString(Breakpoint bp)
+{
+  nall::string toReturn;
+  toReturn.reserve(64);
+  
+  {
+    char buffer[24];
+    snprintf(buffer, 24, "%.6x-%.6x=%.6x", bp.addr, bp.addr_end, (unsigned)bp.data);
+    toReturn.append(buffer);
+  }
+
+  if (bp.mode)
+  {
+    toReturn.append(":");
+    if (bp.mode & (unsigned)Breakpoint::Mode::Exec)
+    {
+      toReturn.append("x");
+    }
+    if (bp.mode & (unsigned)Breakpoint::Mode::Read)
+    {
+      toReturn.append("r");
+    }
+    if (bp.mode & (unsigned)Breakpoint::Mode::Write)
+    {
+      toReturn.append("w");
+    }
+  }
+
+  switch (bp.memory_bus) {
+    default:
+    case SNES::Debugger::CPUBus:
+      toReturn.append(":cpu");
+      break;
+    case SNES::Debugger::APURAM:
+      toReturn.append(":smp");
+      break;
+    case SNES::Debugger::VRAM:
+      toReturn.append(":vram");
+      break;
+    case SNES::Debugger::OAM:
+      toReturn.append(":oam");
+      break;
+    case SNES::Debugger::CGRAM:
+      toReturn.append(":cgram");
+      break;
+    case SNES::Debugger::SA1Bus:
+      toReturn.append(":sa1");
+      break;
+    case SNES::Debugger::SFXBus:
+      toReturn.append(":sfx");
+      break;
+  }
+
+  return toReturn;
+}
+
+void Debugger::breakpoint_test(Debugger::BreakpointMemoryBus memory_bus, Debugger::Breakpoint::Mode mode, unsigned addr, uint8 data) {
   for(unsigned i = 0; i < m_breakpointList.size(); ++i) {
     const Breakpoint bp = m_breakpointList[i];
     
@@ -14,7 +171,7 @@ void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::B
       continue;
     }
 
-    if (bp.source != source) {
+    if (bp.memory_bus != memory_bus) {
       continue;
     }
 
@@ -34,21 +191,21 @@ void Debugger::breakpoint_test(Debugger::BreakpointSourceBus source, Debugger::B
       addr_end = bp.addr_end;
     }
 
-    if (source == Debugger::BreakpointSourceBus::CPUBus) {
+    if (memory_bus == Debugger::BreakpointMemoryBus::CPUBus) {
       for (; addr_start <= addr_end; addr_start += 1 << 16) {
         if (bus.is_mirror(addr_start, addr)) {
           break;
         }
       }
     }
-    else if (source == Debugger::BreakpointSourceBus::SA1Bus) {
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SA1Bus) {
       for (; addr_start <= addr_end; addr_start += 1 << 16) {
         if (sa1bus.is_mirror(addr_start, addr)) {
           break;
         }
       }
     }
-    else if (source == Debugger::BreakpointSourceBus::SFXBus) {
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SFXBus) {
       for (; addr_start <= addr_end; addr_start += 1 << 16) {
         if (superfxbus.is_mirror(addr_start, addr)) {
           break;
@@ -205,10 +362,80 @@ bool Debugger::getBreakpoint(int breakpointId, Breakpoint& outBreakpoint)
   {
     Breakpoint softBp;
     softBp.unique_id = breakpointId;
-    softBp.source = (breakpointId == SoftBreakCPU ? BreakpointSourceBus::CPUBus : BreakpointSourceBus::SA1Bus);
+    softBp.memory_bus = (breakpointId == SoftBreakCPU ? BreakpointMemoryBus::CPUBus : BreakpointMemoryBus::SA1Bus);
     outBreakpoint = softBp;
     return true;
   }
+  return false;
+}
+
+bool Debugger::getUserBreakpoint(BreakpointMemoryBus memory_bus, Breakpoint::Mode mode, unsigned addr, Breakpoint& outBreakpoint)
+{
+  for (unsigned i = 0; i < m_breakpointList.size(); ++i) {
+    const Breakpoint bp = m_breakpointList[i];
+
+    if (!bp.enabled) {
+      continue;
+    }
+
+    if (bp.memory_bus != memory_bus) {
+      continue;
+    }
+
+    if ((bp.mode & (unsigned)mode) == 0) {
+      continue;
+    }
+
+    // account for address mirroring on the S-CPU and SA-1 (and other) buses
+    // (with 64kb granularity for ranged breakpoints)
+    unsigned addr_start = (bp.addr & 0xff0000) | (addr & 0xffff);
+    if (addr_start < bp.addr) {
+      addr_start += 1 << 16;
+    }
+
+    unsigned addr_end = bp.addr;
+    if (bp.addr_end > bp.addr) {
+      addr_end = bp.addr_end;
+    }
+
+    if (memory_bus == Debugger::BreakpointMemoryBus::CPUBus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (bus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SA1Bus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (sa1bus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else if (memory_bus == Debugger::BreakpointMemoryBus::SFXBus) {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (superfxbus.is_mirror(addr_start, addr)) {
+          break;
+        }
+      }
+    }
+    else {
+      for (; addr_start <= addr_end; addr_start += 1 << 16) {
+        if (addr_start == addr) {
+          break;
+        }
+      }
+    }
+
+    if (addr_start > addr_end) {
+      continue;
+    }
+
+    // passed all of the checks, so set this as the bp in question, and return
+    outBreakpoint = m_breakpointList[i];
+    return true;
+  }
+
   return false;
 }
 
@@ -235,6 +462,17 @@ void Debugger::removeBreakpoint(int breakpointId)
 void Debugger::setBreakpointHit(int breakpointId)
 {
   m_breakpointHitId = breakpointId;
+}
+
+nall::linear_vector<int> Debugger::getBreakpointIdList()
+{
+  nall::linear_vector<int> breakpointIds;
+  breakpointIds.reserve(m_breakpointList.size());
+
+  for (int i = 0; i < m_breakpointList.size(); ++i)
+  {
+    breakpointIds.append(m_breakpointList[i].unique_id);
+  }
 }
 
 int Debugger::getBreakpointHit()

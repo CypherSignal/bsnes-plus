@@ -239,14 +239,27 @@ void Debugger::modifySystemState(unsigned state) {
     
     string data;
     if(config().debugger.saveBreakpoints) {
-      breakpointEditor->clear();
+      // first remove all user-created breakpoints
+      {
+        nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
+        for (int i = 0; i < breakpointIds.size(); ++i)
+        {
+          SNES::Debugger::Breakpoint bp;
+          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == SNES::Debugger::Breakpoint::Source::User)
+          {
+            SNES::debugger.removeBreakpoint(breakpointIds[i]);
+          }
+        }
+      }
+
+      // then re-add any breakpoints from the file
       if (data.readfile(bpfile)) {
   	    lstring line;
         data.replace("\r", "");
         line.split("\n", data);
       
         for (int i = 0; i < line.size(); i++) {
-          breakpointEditor->addBreakpoint(line[i]);
+          SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString((const char*)(line[i])));
         }
       }
     }
@@ -272,8 +285,20 @@ void Debugger::modifySystemState(unsigned state) {
     symbolsSA1->unloadAll();
 
     if(config().debugger.saveBreakpoints) {
-      string data = breakpointEditor->toStrings();
-      
+      string data;
+      // get all user-set breakpoints and repeatedly append that onto data
+      {
+        nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
+        for (int i = 0; i < breakpointIds.size(); ++i)
+        {
+          SNES::Debugger::Breakpoint bp;
+          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == SNES::Debugger::Breakpoint::Source::User)
+          {
+            data << SNES::Debugger::breakpointToString(bp) << "\n";
+          }
+        }
+      }
+
       // don't write an empty list of breakpoints unless the file already exists
       if ((data.length() || file::exists(bpfile)) && fp.open(bpfile, file::mode::write)) {
         fp.print(data);
@@ -402,10 +427,10 @@ void Debugger::event() {
         echo(string() << "Software breakpoint hit (SA-1).<br>");
       else break;
       
-      if(bp.source == SNES::Debugger::BreakpointSourceBus::CPUBus ||
-        bp.source == SNES::Debugger::BreakpointSourceBus::VRAM ||
-        bp.source == SNES::Debugger::BreakpointSourceBus::OAM ||
-        bp.source == SNES::Debugger::BreakpointSourceBus::CGRAM) {
+      if(bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::CPUBus ||
+        bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::VRAM ||
+        bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::OAM ||
+        bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::CGRAM) {
         SNES::debugger.step_cpu = true;
         SNES::cpu.disassemble_opcode(t, SNES::cpu.opcode_pc, config().debugger.showHClocks);
         string s = t;
@@ -416,7 +441,7 @@ void Debugger::event() {
         break;
       }
 
-      if (bp.source == SNES::Debugger::BreakpointSourceBus::SA1Bus) {
+      if (bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::SA1Bus) {
         SNES::debugger.step_sa1 = true;
         SNES::sa1.disassemble_opcode(t, SNES::sa1.opcode_pc, config().debugger.showHClocks);
         string s = t;
@@ -427,7 +452,7 @@ void Debugger::event() {
         break;
       }
 
-      if (bp.source == SNES::Debugger::BreakpointSourceBus::APURAM) {
+      if (bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::APURAM) {
         SNES::debugger.step_smp = true;
         SNES::smp.disassemble_opcode(t, SNES::smp.opcode_pc);
         string s = t;
@@ -438,7 +463,7 @@ void Debugger::event() {
         break;
       }
 
-      if (bp.source == SNES::Debugger::BreakpointSourceBus::SFXBus) {
+      if (bp.memory_bus == SNES::Debugger::BreakpointMemoryBus::SFXBus) {
         SNES::debugger.step_sfx = true;
         SNES::superfx.disassemble_opcode(t, SNES::superfx.opcode_pc);
         string s = t;

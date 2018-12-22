@@ -37,7 +37,7 @@ void CPUDebugger::op_step() {
         scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
       }
     }
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Exec, regs.pc, 0x00);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Exec, regs.pc, 0x00);
   }
   if(step_event) step_event();
 
@@ -98,7 +98,7 @@ uint8 CPUDebugger::op_read(uint32 addr) {
     int offset = cartridge.rom_offset(addr);
     if (offset >= 0) cart_usage[offset] |= UsageRead;
   
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Read, addr, data);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Read, addr, data);
   }
   return data;
 }
@@ -110,12 +110,12 @@ uint8 CPUDebugger::dma_read(uint32 abus) {
   if (offset >= 0) cart_usage[offset] |= UsageRead;
   
   uint8 data = CPU::dma_read(abus);
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Read, abus, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Read, abus, data);
   return data;
 }
 
 void CPUDebugger::op_write(uint32 addr, uint8 data) {
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Write, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Write, addr, data);
   CPU::op_write(addr, data);
   usage[addr] |= UsageWrite;
   usage[addr] &= ~UsageExec;
@@ -129,7 +129,7 @@ uint8 CPUDebugger::mmio_read(unsigned addr) {
     uint8 data = bus.read(fulladdr);
   
     usage[fulladdr] |= UsageRead;
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
   }
   
   return CPU::mmio_read(addr);
@@ -140,7 +140,7 @@ void CPUDebugger::mmio_write(unsigned addr, uint8 data) {
     uint32 fulladdr = 0x7e0000 | status.wram_addr;
   
     usage[fulladdr] |= UsageWrite;
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Write, fulladdr, data);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Write, fulladdr, data);
   }
   
   CPU::mmio_write(addr, data);
@@ -151,7 +151,7 @@ uint8 CPUDebugger::mmio_r2180() {
   uint8 data = bus.read(fulladdr);
  
   usage[fulladdr] |= UsageRead;
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Read, fulladdr, data);
   return CPU::mmio_r2180();
 }
 
@@ -159,7 +159,7 @@ void CPUDebugger::mmio_w2180(uint8 data) {
   uint32 fulladdr = 0x7e0000 | status.wram_addr;
  
   usage[fulladdr] |= UsageWrite;
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::CPUBus, Debugger::Breakpoint::Mode::Write, fulladdr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CPUBus, Debugger::Breakpoint::Mode::Write, fulladdr, data);
   CPU::mmio_w2180(data);
 }
 #endif

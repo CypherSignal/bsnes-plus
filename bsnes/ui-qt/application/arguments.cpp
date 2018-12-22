@@ -76,9 +76,10 @@ bool Application::parseArgumentSwitch(const string& arg, const string& parameter
   }
 
   if(arg == "--breakpoint" || arg == "-b") {
-    if(parameter == "" || parameter[0] == '-') return false;
-
-    breakpointEditor->addBreakpoint(parameter);
+    if (parameter == "" || parameter[0] == '-') {
+      return false;
+    }
+    SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString((const char*)parameter));
 
     return true;
   }

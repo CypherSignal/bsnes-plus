@@ -32,7 +32,7 @@ void SA1Debugger::op_step() {
         scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
       }
     }
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::SA1Bus, Debugger::Breakpoint::Mode::Exec, regs.pc, 0x00);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::SA1Bus, Debugger::Breakpoint::Mode::Exec, regs.pc, 0x00);
   }
   if(step_event) step_event();
 
@@ -73,7 +73,7 @@ uint8 SA1Debugger::op_read(uint32 addr) {
     int offset = cartridge.rom_offset(addr);
     if (offset >= 0) (*cart_usage)[offset] |= UsageRead;
   
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::SA1Bus, Debugger::Breakpoint::Mode::Read, addr, data);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::SA1Bus, Debugger::Breakpoint::Mode::Read, addr, data);
   }
   return data;
 }
@@ -81,7 +81,7 @@ uint8 SA1Debugger::op_read(uint32 addr) {
 // TODO: SA-1 DMA/HDMA
 
 void SA1Debugger::op_write(uint32 addr, uint8 data) {
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::SA1Bus, Debugger::Breakpoint::Mode::Write, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::SA1Bus, Debugger::Breakpoint::Mode::Write, addr, data);
   SA1::op_write(addr, data);
   usage[addr] |= UsageWrite;
   usage[addr] &= ~UsageExec;

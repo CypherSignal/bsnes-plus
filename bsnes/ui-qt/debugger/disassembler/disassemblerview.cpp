@@ -257,12 +257,12 @@ void DisassemblerView::setComment() {
 // ------------------------------------------------------------------------
 void DisassemblerView::toggleBreakpoint() {
   uint32_t address = mouseStateValue;
-  int32_t breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
-
-  if (breakpoint >= 0) {
-    breakpointEditor->removeBreakpoint(breakpoint);
+  
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getUserBreakpoint(processor->getBreakpointBus(), SNES::Debugger::Breakpoint::Mode::Exec, address, bp)) {
+    SNES::debugger.removeBreakpoint(bp.unique_id);
   } else {
-    breakpointEditor->addBreakpoint(nall::hex(address), "x", processor->getBreakpointBusName());
+    SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString(nall::hex(address), "x", processor->getBreakpointBusName()));
   }
 
   viewport()->update();
@@ -496,7 +496,8 @@ void DisassemblerView::paintOpcode(QPainter &painter, RenderableDisassemblerLine
     paramSymbolColor = QColor(0xFF, 0x00, 0x00, 0xff);
   }
 
-  if (breakpointEditor->indexOfBreakpointExec(line.line.address, processor->getBreakpointBusName()) >= 0) {
+  SNES::Debugger::Breakpoint bp;
+  if (SNES::debugger.getUserBreakpoint(processor->getBreakpointBus(), SNES::Debugger::Breakpoint::Mode::Exec, line.line.address, bp) > 0) {
     painter.fillRect(QRect(0, y - charHeight + lineOffset, columnSizes[COLUMN_ADDRESS], charHeight), _breakpointColor);
     addressColor = Qt::white;
   }

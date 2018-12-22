@@ -14,7 +14,7 @@ void SMPDebugger::op_step() {
     debugger.step_type = Debugger::StepType::None;
     scheduler.exit(Scheduler::ExitReason::DebuggerEvent);
   } else {
-    debugger.breakpoint_test(Debugger::BreakpointSourceBus::APURAM, Debugger::Breakpoint::Mode::Exec, regs.pc, 0x00);
+    debugger.breakpoint_test(Debugger::BreakpointMemoryBus::APURAM, Debugger::Breakpoint::Mode::Exec, regs.pc, 0x00);
   }
   if(step_event) step_event();
 
@@ -48,12 +48,12 @@ alwaysinline uint8_t SMPDebugger::op_readpc() {
 uint8 SMPDebugger::op_read(uint16 addr) {
   uint8 data = SMP::op_read(addr);
   usage[addr] |= UsageRead;
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::APURAM, Debugger::Breakpoint::Mode::Read, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::APURAM, Debugger::Breakpoint::Mode::Read, addr, data);
   return data;
 }
 
 void SMPDebugger::op_write(uint16 addr, uint8 data) {
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::APURAM, Debugger::Breakpoint::Mode::Write, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::APURAM, Debugger::Breakpoint::Mode::Write, addr, data);
   SMP::op_write(addr, data);
   usage[addr] |= UsageWrite;
   usage[addr] &= ~UsageExec;

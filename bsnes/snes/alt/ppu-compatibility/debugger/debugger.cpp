@@ -2,34 +2,34 @@
 
 uint8 PPUDebugger::vram_mmio_read(uint16 addr) {
   uint8 data = PPU::vram_mmio_read(addr);
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::VRAM, Debugger::Breakpoint::Mode::Read, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::VRAM, Debugger::Breakpoint::Mode::Read, addr, data);
   return data;
 }
 
 void PPUDebugger::vram_mmio_write(uint16 addr, uint8 data) {
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::VRAM, Debugger::Breakpoint::Mode::Write, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::VRAM, Debugger::Breakpoint::Mode::Write, addr, data);
   PPU::vram_mmio_write(addr, data);
 }
 
 uint8 PPUDebugger::oam_mmio_read(uint16 addr) {
   uint8 data = PPU::oam_mmio_read(addr);
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::OAM, Debugger::Breakpoint::Mode::Read, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::OAM, Debugger::Breakpoint::Mode::Read, addr, data);
   return data;
 }
 
 void PPUDebugger::oam_mmio_write(uint16 addr, uint8 data) {
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::OAM, Debugger::Breakpoint::Mode::Write, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::OAM, Debugger::Breakpoint::Mode::Write, addr, data);
   PPU::oam_mmio_write(addr, data);
 }
 
 uint8 PPUDebugger::cgram_mmio_read(uint16 addr) {
   uint8 data = PPU::cgram_mmio_read(addr);
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::CGRAM, Debugger::Breakpoint::Mode::Read, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CGRAM, Debugger::Breakpoint::Mode::Read, addr, data);
   return data;
 }
 
 void PPUDebugger::cgram_mmio_write(uint16 addr, uint8 data) {
-  debugger.breakpoint_test(Debugger::BreakpointSourceBus::CGRAM, Debugger::Breakpoint::Mode::Write, addr, data);
+  debugger.breakpoint_test(Debugger::BreakpointMemoryBus::CGRAM, Debugger::Breakpoint::Mode::Write, addr, data);
   PPU::cgram_mmio_write(addr, data);
 }
 

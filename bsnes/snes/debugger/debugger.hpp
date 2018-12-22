@@ -9,7 +9,7 @@ public:
     SFXStep,
   } break_event;
 
-  enum BreakpointSourceBus
+  enum BreakpointMemoryBus
   {
     CPUBus = 0,
     APURAM = 1,
@@ -21,9 +21,12 @@ public:
     Num_SourceBus = 7,
   };
 
-  enum { Breakpoints = 8,
-         SoftBreakCPU = -1,
-         SoftBreakSA1 = -2, };
+  enum { 
+    Breakpoints = 8,
+    SoftBreakCPU = -1,
+    SoftBreakSA1 = -2, 
+  };
+
   struct Breakpoint {
     int unique_id = 0;
     bool enabled = false;
@@ -31,14 +34,27 @@ public:
     unsigned addr_end = 0; //0 = unused
     signed data = -1;  //-1 = unused
     
-    enum class Mode : unsigned { Exec = 1, Read = 2, Write = 4 };
+    enum class Mode : unsigned {
+      Exec = 1 << 0,
+      Read = 1 << 1, 
+      Write = 1 << 2
+    };
     unsigned mode = (unsigned)Mode::Exec;
     
-    BreakpointSourceBus source = BreakpointSourceBus::CPUBus;
+    BreakpointMemoryBus memory_bus = BreakpointMemoryBus::CPUBus;
     unsigned counter = 0;  //number of times breakpoint has been hit since being set
-  };
 
-  void breakpoint_test(BreakpointSourceBus source, Breakpoint::Mode mode, unsigned addr, uint8 data);
+    enum class Source {
+      ExternDebug, // this was a breakpoint provided via the externdebug/debug adapter system
+      User // this was a breakpoint provided by a user (at some point in time - this could have been reloaded from disc)
+    };
+    Source source = Source::User;
+  };
+  static Breakpoint breakpointFromString(const char* desc);
+  static Breakpoint breakpointFromString(const char* addr, const char* mode, const char* source);
+  static string breakpointToString(Breakpoint bp);
+
+  void breakpoint_test(BreakpointMemoryBus memory_bus, Breakpoint::Mode mode, unsigned addr, uint8 data);
 
   bool step_cpu;
   bool step_smp;
@@ -61,12 +77,18 @@ public:
   Debugger();
 
   bool getBreakpoint(int breakpointId, Breakpoint& outBreakpoint);
-  
+
+  // finds a breakpoint that matches the given criteria (regardless of data compare, and only fetching User bps)
+  bool getUserBreakpoint(BreakpointMemoryBus memory_bus, Breakpoint::Mode mode, unsigned addr, Breakpoint& outBreakpoint);
+
   int addBreakpoint(Breakpoint newBreakpoint);
   void removeBreakpoint(int breakpointId);
 
   int getBreakpointHit();
   void setBreakpointHit(int breakpointId);
+
+  // dcrooks-todo this function should probably go away at some point. The accessors/modifiers that follow uses of it are almost guaranteed to be accidentally quadratic.
+  nall::linear_vector<int> getBreakpointIdList();
 
 private:
   nall::linear_vector<Breakpoint> m_breakpointList;

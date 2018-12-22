@@ -12,4 +12,6 @@ public:
   virtual bool getLine(DisassemblerLine &result, uint32_t &address) = 0;
 
   virtual string getBreakpointBusName() = 0;
+  virtual SNES::Debugger::BreakpointMemoryBus getBreakpointBus() = 0;
+
 };

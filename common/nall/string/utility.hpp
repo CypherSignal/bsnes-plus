@@ -152,6 +152,14 @@ string fp(double value) {
   return temp;
 }
 
+// simple hash function, esp. useful for doing switch/case on strings
+constexpr unsigned long hashCalc(const char* ch, size_t len) {
+  return len > 0 ? ((unsigned long)(*ch) + hashCalc(ch + 1, len - 1) * 33) % (1 << 26) : 0;
+}
+constexpr unsigned long operator "" _hash(const char* ch, size_t len) {
+  return hashCalc(ch, len);
+}
+
 }
 
 #endif

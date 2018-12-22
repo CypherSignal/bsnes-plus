@@ -8,6 +8,18 @@ CommonDisasmProcessor::CommonDisasmProcessor(CommonDisasmProcessor::Source sourc
 }
 
 // ------------------------------------------------------------------------
+SNES::Debugger::BreakpointMemoryBus CommonDisasmProcessor::getBreakpointBus() {
+  switch (source) {
+    case CPU: return SNES::Debugger::BreakpointMemoryBus::CPUBus;
+    case SMP: return SNES::Debugger::BreakpointMemoryBus::APURAM;
+    case SFX: return SNES::Debugger::BreakpointMemoryBus::SFXBus;
+    case SA1: return SNES::Debugger::BreakpointMemoryBus::SA1Bus;
+  }
+
+  return SNES::Debugger::BreakpointMemoryBus::CPUBus;
+}
+
+// ------------------------------------------------------------------------
 string CommonDisasmProcessor::getBreakpointBusName() {
   switch (source) {
     case CPU: return "cpu";
