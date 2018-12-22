@@ -43,6 +43,12 @@ public:
     
     BreakpointMemoryBus memory_bus = BreakpointMemoryBus::CPUBus;
     unsigned counter = 0;  //number of times breakpoint has been hit since being set
+
+    enum class Source {
+      ExternDebug, // this was a breakpoint provided via the externdebug/debug adapter system
+      User // this was a breakpoint provided by a user (at some point in time - this could have been reloaded from disc)
+    };
+    Source source = User;
   };
   static Breakpoint breakpointFromString(const char* desc);
   static Breakpoint breakpointFromString(const char* addr, const char* mode, const char* source);
@@ -77,6 +83,9 @@ public:
 
   int getBreakpointHit();
   void setBreakpointHit(int breakpointId);
+
+  // dcrooks-todo this function should probably go away at some point. The accessors/modifiers that follow uses of it are almost guaranteed to be accidentally quadratic.
+  nall::linear_vector<int> getBreakpointIdList();
 
 private:
   nall::linear_vector<Breakpoint> m_breakpointList;

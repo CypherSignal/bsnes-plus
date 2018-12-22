@@ -394,6 +394,17 @@ void Debugger::setBreakpointHit(int breakpointId)
   m_breakpointHitId = breakpointId;
 }
 
+const nall::linear_vector<int> Debugger::getBreakpointIdList()
+{
+  nall::linear_vector<int> breakpointIds;
+  breakpointIds.reserve(m_breakpointList.size());
+
+  for (int i = 0; i < m_breakpointList.size(); ++i)
+  {
+    breakpointIds.push_back(m_breakpointList[i].unique_id);
+  }
+}
+
 int Debugger::getBreakpointHit()
 {
   return m_breakpointHitId;

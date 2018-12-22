@@ -239,7 +239,20 @@ void Debugger::modifySystemState(unsigned state) {
     
     string data;
     if(config().debugger.saveBreakpoints) {
-      breakpointEditor->clear();
+      // first remove all user-created breakpoints
+      {
+        nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
+        for (int i = 0; i < breakpointIds.size(); ++i)
+        {
+          Breakpoint bp;
+          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == Breakpoint::Source::User)
+          {
+            SNES::debugger.removeBreakpoint(breakpointIds[i]);
+          }
+        }
+      }
+
+      // then re-add any breakpoints from the file
       if (data.readfile(bpfile)) {
   	    lstring line;
         data.replace("\r", "");
@@ -273,9 +286,19 @@ void Debugger::modifySystemState(unsigned state) {
 
     if(config().debugger.saveBreakpoints) {
       string data;
-      // dcrooks-todo need to get user-set breakpoints and repeatedly append that onto data
-      //string data = breakpointEditor->toStrings();
-      
+      // get all user-set breakpoints and repeatedly append that onto data
+      {
+        nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
+        for (int i = 0; i < breakpointIds.size(); ++i)
+        {
+          Breakpoint bp;
+          if (SNES::debugger.getBreakpoint(breakpointIds[i], bp) && bp.source == Breakpoint::Source::User)
+          {
+            data << SNES::Debugger::breakpointToString(bp) << "\n";
+          }
+        }
+      }
+
       // don't write an empty list of breakpoints unless the file already exists
       if ((data.length() || file::exists(bpfile)) && fp.open(bpfile, file::mode::write)) {
         fp.print(data);
