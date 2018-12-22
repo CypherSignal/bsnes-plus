@@ -50,7 +50,7 @@ void SymbolsView::bind(QTreeWidgetItem *item, int value) {
   // dcrooks-todo probably need to add an accessor to find some breakpoint for this value
   int breakpoint = breakpointEditor->indexOfBreakpointExec(address, processor->getBreakpointBusName());
   if (!enable && breakpoint > 0) {
-    breakpointEditor->removeBreakpoint(breakpoint);
+    SNES::debugger.removeBreakpoint(breakpoint);
   } else if (enable) {
     SNES::debugger.addBreakpoint(SNES::Debugger::breakpointFromString(nall::hex(address), "x", processor->getBreakpointBusName()));
   }
