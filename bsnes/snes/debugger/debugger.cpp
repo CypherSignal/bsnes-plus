@@ -20,7 +20,7 @@ Debugger::Breakpoint Debugger::breakpointFromString(const char* desc)
 }
 
 // dcrooks-todo need to actually test this
-Debugger::Breakpoint Debugger::breakpointFromString(const char* addr, const char* mode, const char* source)
+Debugger::Breakpoint Debugger::breakpointFromString(const char* addr, const char* mode, const char* memory_bus)
 {
   Breakpoint bp;
   char temp[32] = {0};
@@ -68,9 +68,9 @@ Debugger::Breakpoint Debugger::breakpointFromString(const char* addr, const char
   }
 
   // copy 'source' into temp and do hash-switch to determine appropriate sourceBus
-  if (source)
+  if (memory_bus)
   {
-    nall::strlcpy(temp, source, 8);
+    nall::strlcpy(temp, memory_bus, 8);
     nall::strlower(temp);
     switch (hashCalc(temp, strlen(temp)))
     {

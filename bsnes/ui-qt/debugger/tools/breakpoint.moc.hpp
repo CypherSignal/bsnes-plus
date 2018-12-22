@@ -19,7 +19,7 @@ public:
   QCheckBox *mode_r;
   QCheckBox *mode_w;
   QCheckBox *mode_x;
-  QComboBox *source;
+  QComboBox *memory_bus;
   BreakpointItem(QGridLayout* gridLayout, int row);
 
   bool isEnabled() const;

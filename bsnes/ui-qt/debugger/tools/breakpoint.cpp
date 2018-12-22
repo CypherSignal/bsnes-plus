@@ -33,17 +33,17 @@ BreakpointItem::BreakpointItem(QGridLayout* gridLayout, int row) : m_breakpointI
   gridLayout->addWidget(mode_x, row, BreakExecute);
   connect(mode_x, SIGNAL(toggled(bool)), this, SLOT(toggle()));
   
-  source = new QComboBox;
-  source->addItem("S-CPU bus");
-  source->addItem("S-SMP bus");
-  source->addItem("S-PPU VRAM");
-  source->addItem("S-PPU OAM");
-  source->addItem("S-PPU CGRAM");
-  source->addItem("SA-1 bus");
-  source->addItem("SuperFX bus");
-  gridLayout->addWidget(source, row, BreakSource);
-  connect(source, SIGNAL(currentIndexChanged(int)), this, SLOT(init()));
-  connect(source, SIGNAL(currentIndexChanged(int)), this, SLOT(toggle()));
+  memory_bus = new QComboBox;
+  memory_bus->addItem("S-CPU bus");
+  memory_bus->addItem("S-SMP bus");
+  memory_bus->addItem("S-PPU VRAM");
+  memory_bus->addItem("S-PPU OAM");
+  memory_bus->addItem("S-PPU CGRAM");
+  memory_bus->addItem("SA-1 bus");
+  memory_bus->addItem("SuperFX bus");
+  gridLayout->addWidget(memory_bus, row, BreakSource);
+  connect(memory_bus, SIGNAL(currentIndexChanged(int)), this, SLOT(init()));
+  connect(memory_bus, SIGNAL(currentIndexChanged(int)), this, SLOT(toggle()));
   
   init();
 }
@@ -131,7 +131,7 @@ void BreakpointItem::toggle() {
     bp.mode |= mode_w->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Write : 0;
     bp.mode |= mode_x->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
 
-    bp.memory_bus = (SNES::Debugger::BreakpointMemoryBus)source->currentIndex();
+    bp.memory_bus = (SNES::Debugger::BreakpointMemoryBus)memory_bus->currentIndex();
     m_breakpointId = SNES::debugger.addBreakpoint(bp);
   }
 }
@@ -145,7 +145,7 @@ void BreakpointItem::clear() {
   mode_w->setChecked(false);
   mode_x->setChecked(false);
   
-  source->setCurrentIndex(0);
+  memory_bus->setCurrentIndex(0);
 }
 
 //////////////////////////////////////////////////////////////////////////
