@@ -473,6 +473,8 @@ nall::linear_vector<int> Debugger::getBreakpointIdList()
   {
     breakpointIds.append(m_breakpointList[i].unique_id);
   }
+
+  return breakpointIds;
 }
 
 int Debugger::getBreakpointHit()
