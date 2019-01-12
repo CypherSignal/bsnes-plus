@@ -199,6 +199,8 @@ Debugger::Debugger() {
   QTimer *updateTimer = new QTimer(this);
   connect(updateTimer, SIGNAL(timeout()), this, SLOT(frameTick()));
   updateTimer->start(15);
+
+  breakpointEditor->show();
 }
 
 void Debugger::modifySystemState(unsigned state) {

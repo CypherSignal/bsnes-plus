@@ -90,11 +90,14 @@ BreakpointEditor::BreakpointEditor() {
   application.windowList.append(this);
 
   // Generate a widgetitem for the breakpoints, matching its column layout
+  // dcrooks-todo probably don't need a qgridlayout anymore if we're not doing a grid
   QGridLayout* gridLayout = new QGridLayout();
-  gridLayout->setSizeConstraint(QLayout::SetFixedSize);
+  //gridLayout->setSizeConstraint(QLayout::SetFixedSize);
   gridLayout->setMargin(Style::WindowMargin);
   gridLayout->setSpacing(Style::WidgetSpacing);
   setLayout(gridLayout);
+
+  int row = 0;
 
   //QLabel *label;
   //label = new QLabel("Address Range");
@@ -123,20 +126,58 @@ BreakpointEditor::BreakpointEditor() {
   //}
   //
 
+  addBreakpoint = new QPushButton("Add breakpoint", this);
+  connect(addBreakpoint, &QPushButton::clicked, this, [=]() {
+    bool ok;
+    SNES::Debugger::Breakpoint bp = BreakpointDialog::getBreakpoint(&ok, this);
+    if (ok)
+    {
+      SNES::debugger.addBreakpoint(bp);
+    }
+  });
+  gridLayout->addWidget(addBreakpoint, row++, 0);
+
+  breakpointModel = new QStandardItemModel(this);
+  breakpointModel->setHorizontalHeaderLabels({ "Address Start", "Address End", "Data", "Source", "Read", "Write", "Execute" });
+  
+  treeview = new QTreeView(this);
+  treeview->setItemsExpandable(false);
+  treeview->setUniformRowHeights(true);
+  treeview->setModel(breakpointModel);
+  gridLayout->addWidget(treeview, row++, 0);
+
   breakOnWDM = new QCheckBox("Break on WDM (CPU/SA-1 opcode 0x42)");
   breakOnWDM->setChecked(SNES::debugger.break_on_wdm);
   connect(breakOnWDM, SIGNAL(toggled(bool)), this, SLOT(toggle()));
-  gridLayout->addWidget(breakOnWDM, SNES::Debugger::Breakpoints + 1, 0, 1, -1);
+  gridLayout->addWidget(breakOnWDM, row++, 0);
 
   breakOnBRK = new QCheckBox("Break on BRK (CPU/SA-1 opcode 0x00)");
   breakOnBRK->setChecked(SNES::debugger.break_on_brk);
   connect(breakOnBRK, SIGNAL(toggled(bool)), this, SLOT(toggle()));
-  gridLayout->addWidget(breakOnBRK, SNES::Debugger::Breakpoints + 2, 0, 1, -1);
+  gridLayout->addWidget(breakOnBRK, row++, 0);
 }
 
 void BreakpointEditor::toggle() {
   SNES::debugger.break_on_brk = breakOnBRK->isChecked();
   SNES::debugger.break_on_wdm = breakOnWDM->isChecked();
+
+  // dcrooks-todo do we just make a vertical layout of breakpoint items, and have a QScrollArea widget to help?
+  // dcrooks-todo it would make things a lot more direct. Maybe a bit slower due to scale of widgets (dozens? hundreds?)
+  // dcrooks-todo it would simplfy the "how do we add checkboxes to a list" problem...tree view may not be best solution for breakpoints...
+
+  // dcrooks-todo also need to think about sorting. REALLY should have a sort key...
+  if (breakpointModel)
+  {
+    breakpointModel->removeRows(0, breakpointModel->rowCount());
+    nall::linear_vector<int> breakpointIds = SNES::debugger.getBreakpointIdList();
+    for (int i = 0; i < breakpointIds.size(); ++i)
+    {
+      SNES::Debugger::Breakpoint bp;
+      SNES::debugger.getBreakpoint(breakpointIds[i], bp);
+      QStandardItem* item = new QStandardItem(SNES::Debugger::breakpointToString(bp)());
+      breakpointModel->appendRow(item);
+    }
+  }
 }
 
 void BreakpointEditor::clear() {
@@ -150,3 +191,75 @@ void BreakpointEditor::setBreakOnBrk(bool b) {
   SNES::debugger.break_on_brk = b;
 }
 
+
+BreakpointDialog::BreakpointDialog(QWidget* parent)
+  :QDialog(parent)
+{
+  QFormLayout *layout = new QFormLayout;
+
+  addr = new QLineEdit(this);
+  addr_end = new QLineEdit(this);
+  data = new QLineEdit(this);
+  mode_r = new QCheckBox(this);
+  mode_w = new QCheckBox(this);
+  mode_x = new QCheckBox(this);
+
+  memory_bus = new QComboBox(this);
+  memory_bus->addItem("S-CPU bus");
+  memory_bus->addItem("S-SMP bus");
+  memory_bus->addItem("S-PPU VRAM");
+  memory_bus->addItem("S-PPU OAM");
+  memory_bus->addItem("S-PPU CGRAM");
+  memory_bus->addItem("SA-1 bus");
+  memory_bus->addItem("SuperFX bus");
+
+  layout->addRow("Address:", addr);
+  layout->addRow("Address end:", addr_end);
+  layout->addRow("Data:", data);
+  layout->addRow("Break on read:", mode_r);
+  layout->addRow("Break on write:", mode_w);
+  layout->addRow("Break on execute:", mode_x);
+  layout->addRow("Source bus:", memory_bus);
+
+  QDialogButtonBox* buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+
+  connect(buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+  connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+  
+  layout->addRow(buttonBox);
+  
+  setLayout(layout);
+}
+
+
+SNES::Debugger::Breakpoint BreakpointDialog::getBreakpoint(bool* ok, QWidget* parent)
+{
+  BreakpointDialog dialog(parent);
+  QDialog::DialogCode dialogCode = (QDialog::DialogCode)dialog.exec();
+
+  if (dialogCode == QDialog::DialogCode::Accepted)
+  {
+    if (ok)
+    {
+      *ok = true;
+    }
+    return dialog.getBreakpoint();
+  }
+  return SNES::Debugger::Breakpoint();
+}
+
+SNES::Debugger::Breakpoint BreakpointDialog::getBreakpoint() const
+{
+  SNES::Debugger::Breakpoint bp;
+  bp.enabled = true;
+  bp.addr = hex(addr->text().toUtf8().data()) & 0xffffff;
+  bp.addr_end = hex(addr_end->text().toUtf8().data()) & 0xffffff;
+  bp.data = (data->text().length() != 0) ? (hex(data->text().toUtf8().data()) & 0xff) : -1;
+  bp.mode = 0;
+  bp.mode |= mode_r->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Read : 0;
+  bp.mode |= mode_w->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Write : 0;
+  bp.mode |= mode_x->isChecked() ? (unsigned)SNES::Debugger::Breakpoint::Mode::Exec : 0;
+  bp.memory_bus = (SNES::Debugger::BreakpointMemoryBus)memory_bus->currentIndex();
+
+  return bp;
+}
